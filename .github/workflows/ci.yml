@@ -1,0 +1,86 @@
+name: CI Basic
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # 1. GO PROJECT CHECK
+  test-go:
+    name: Test Go Project
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+        
+    - name: Download dependencies
+      run: |
+        cd relayer
+        go mod download
+        go mod verify
+        
+    - name: Build Go project
+      run: |
+        cd relayer
+        go build -v ./...
+        
+    - name: Run Go tests
+      run: |
+        cd relayer
+        go test -v ./...
+
+  # 2.  MARKDOWN DOCUMENTATION CHECK
+  lint-markdown:
+    name: Lint Markdown files
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Lint Markdown
+      uses: actionshub/markdownlint@main
+      with:
+        config_file: '.markdownlint.yml'
+
+  # 3. SECURITY - DEPENDENCIES SCAN
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Dependency Review
+      uses: actions/dependency-review-action@v3
+      
+    - name: CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        languages: go, javascript
+
+  # 4. PREPARATION FOR SMART CONTRACTS
+  setup-node:
+    name: Setup Node.js for future contracts
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: contracts/package-lock.json
+        
+    - name: Install dependencies (if package.json exists)
+      run: |
+        if [ -f "contracts/package.json" ]; then
+          cd contracts
+          npm ci
+        else
+          echo "No package.json found - skipping npm install"
+        fi
