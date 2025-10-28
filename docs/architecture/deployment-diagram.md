@@ -1,11 +1,9 @@
 
-## 📁 **3. docs/architecture/deployment-diagram.md**
-```markdown
 # Deployment Architecture
 
 ## Development Environment
 
-![Deployment](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/dmsus/crossChainBridge/main/docs/architecture/diagrams/deployment.puml)
+![Development Deployment](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/dmsus/crossChainBridge/main/docs/architecture/diagrams/deployment.puml)
 
 **Components:**
 - **Developer Machine**: Local development environment
