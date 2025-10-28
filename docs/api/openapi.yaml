@@ -1,0 +1,280 @@
+openapi: 3.0.0
+info:
+  title: Cross-Chain Bridge API
+  description: REST API for cross-chain token bridge operations and monitoring
+  version: 1.0.0
+  contact:
+    name: Bridge API Support
+    email: support@bridge.com
+
+servers:
+  - url: http://localhost:8080
+    description: Development server
+  - url: https://api.bridge.com
+    description: Production server
+
+paths:
+  /api/bridge/lock:
+    post:
+      summary: Initiate token lock for cross-chain transfer
+      description: Lock tokens in source network to initiate cross-chain transfer
+      tags:
+        - Bridge Operations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LockRequest'
+      responses:
+        '202':
+          description: Lock initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LockResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/bridge/status/{txHash}:
+    get:
+      summary: Get transaction status
+      description: Retrieve status of a cross-chain transaction by transaction hash
+      tags:
+        - Bridge Operations
+      parameters:
+        - name: txHash
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Transaction hash from source network
+      responses:
+        '200':
+          description: Transaction status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionStatus'
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /health:
+    get:
+      summary: Health check
+      description: Check service health and component status
+      tags:
+        - Monitoring
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '503':
+          description: Service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      description: Expose service metrics in Prometheus format
+      tags:
+        - Monitoring
+      responses:
+        '200':
+          description: Metrics in Prometheus format
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /api/transactions:
+    get:
+      summary: List recent transactions
+      description: Get paginated list of recent cross-chain transactions
+      tags:
+        - Monitoring
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+          description: Number of transactions per page
+      responses:
+        '200':
+          description: Transactions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionList'
+
+components:
+  schemas:
+    LockRequest:
+      type: object
+      required:
+        - sourceNetwork
+        - targetNetwork
+        - amount
+        - targetAddress
+      properties:
+        sourceNetwork:
+          type: string
+          enum: [ethereum, polygon]
+          description: Source blockchain network
+        targetNetwork:
+          type: string
+          enum: [ethereum, polygon]
+          description: Target blockchain network
+        amount:
+          type: string
+          pattern: '^[0-9]+$'
+          description: Amount of tokens to transfer (in wei/smallest unit)
+        targetAddress:
+          type: string
+          pattern: '^0x[a-fA-F0-9]{40}$'
+          description: Recipient address in target network
+        tokenAddress:
+          type: string
+          pattern: '^0x[a-fA-F0-9]{40}$'
+          description: ERC-20 token contract address (optional, uses default if not provided)
+
+    LockResponse:
+      type: object
+      properties:
+        transactionHash:
+          type: string
+          description: Hash of the lock transaction
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+          description: Initial transaction status
+        estimatedCompletionTime:
+          type: string
+          format: date-time
+          description: Estimated time for cross-chain transfer completion
+
+    TransactionStatus:
+      type: object
+      properties:
+        transactionHash:
+          type: string
+          description: Source transaction hash
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+          description: Current transaction status
+        sourceNetwork:
+          type: string
+          description: Source blockchain network
+        targetNetwork:
+          type: string
+          description: Target blockchain network
+        amount:
+          type: string
+          description: Transfer amount
+        timestamp:
+          type: string
+          format: date-time
+          description: Transaction creation timestamp
+        confirmations:
+          type: integer
+          description: Number of block confirmations
+        bridgeFee:
+          type: string
+          description: Bridge fee charged
+
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        components:
+          type: object
+          properties:
+            database:
+              type: string
+              enum: [healthy, unhealthy]
+            ethereumNode:
+              type: string
+              enum: [healthy, unhealthy]
+            polygonNode:
+              type: string
+              enum: [healthy, unhealthy]
+            messageQueue:
+              type: string
+              enum: [healthy, unhealthy]
+
+    TransactionList:
+      type: object
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionStatus'
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+            pages:
+              type: integer
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error type
+        message:
+          type: string
+          description: Human-readable error message
+        code:
+          type: integer
+          description: HTTP status code
+        details:
+          type: object
+          description: Additional error details
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
