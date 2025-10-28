@@ -1,0 +1,32 @@
+@startuml c4_level2
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+Person(user, "User", "Initiates transfers")
+Person(operator, "Operator", "Manages system")
+
+System_Boundary(bridge, "Cross-Chain Bridge System") {
+    Container(web_app, "Web Frontend", "React/TypeScript", "Provides user interface for bridge operations")
+    Container(relay_service, "Go Relay Service", "Go 1.21", "Core bridge logic and event processing")
+    Container(postgres, "PostgreSQL Database", "PostgreSQL 14", "Stores transaction state and idempotency data")
+    Container(spa, "Single Page Application", "JavaScript", "User-facing dApp interface")
+}
+
+Container(eth_contract, "BridgeEthereum.sol", "Solidity", "Lock tokens and emit events")
+Container(poly_contract, "BridgePolygon.sol", "Solidity", "Release tokens with signature verification")
+
+System_Ext(ethereum, "Ethereum Sepolia", "Blockchain")
+System_Ext(polygon, "Polygon Amoy", "Blockchain")
+System_Ext(infura, "Infura Node Service", "Node Provider")
+
+Rel(user, web_app, "Uses", "HTTPS")
+Rel(user, spa, "Interacts with", "HTTPS/Web3")
+Rel(operator, relay_service, "Manages", "HTTPS/API")
+Rel(web_app, eth_contract, "Calls lockTokens", "JSON-RPC")
+Rel(relay_service, eth_contract, "Listens for TokensLocked", "WebSocket")
+Rel(relay_service, poly_contract, "Calls releaseTokens", "JSON-RPC")
+Rel(relay_service, postgres, "Reads/Writes transaction state", "PSQL")
+Rel(eth_contract, ethereum, "Deployed on", "EVM")
+Rel(poly_contract, polygon, "Deployed on", "EVM")
+Rel(relay_service, infura, "Connects via", "WebSocket/HTTPS")
+
+@enduml

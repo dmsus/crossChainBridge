@@ -1,0 +1,19 @@
+@startuml c4_level1
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+Person(user, "User", "Initiates cross-chain transfers via dApp or MetaMask")
+Person(operator, "System Operator", "Monitors and manages bridge operations")
+
+System(bridge_system, "Cross-Chain Bridge", "Facilitates token transfers between blockchain networks")
+
+System_Ext(ethereum, "Ethereum Sepolia", "Source blockchain network")
+System_Ext(polygon, "Polygon Amoy", "Destination blockchain network")
+System_Ext(infura, "Infura/Node Provider", "Blockchain node infrastructure")
+
+Rel(user, bridge_system, "Initiates transfers", "JSON-RAPI/Web3")
+Rel(operator, bridge_system, "Monitors and manages", "HTTPS/API")
+Rel(bridge_system, ethereum, "Listens for lock events\nSubmits lock transactions", "WebSocket/JSON-RPC")
+Rel(bridge_system, polygon, "Submits release transactions", "JSON-RPC")
+Rel(bridge_system, infura, "Node connectivity", "WebSocket/HTTPS")
+
+@enduml

@@ -1,0 +1,28 @@
+@startuml c4_level3
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+Container(relay_service, "Go Relay Service", "Go", "Processes cross-chain transfers")
+
+Component(api_server, "API Server", "Go/HTTP", "REST API for monitoring and administration")
+Component(event_listener, "Event Listener", "Go/WebSocket", "Monitors blockchain for lock events")
+Component(transaction_processor, "Transaction Processor", "Go", "Processes and validates events")
+Component(signer_service, "Signer Service", "Go/crypto", "Generates cryptographic signatures")
+Component(db_client, "Database Client", "Go/pq", "Manages PostgreSQL interactions")
+Component(metrics_collector, "Metrics Collector", "Go/Prometheus", "Collects and exposes metrics")
+Component(config_manager, "Configuration Manager", "Go/Viper", "Manages service configuration")
+
+Component_Ext(eth_node, "Ethereum Node", "WebSocket")
+Component_Ext(poly_node, "Polygon Node", "JSON-RPC")
+Component_Ext(postgres, "PostgreSQL", "PSQL")
+
+Rel(api_server, transaction_processor, "Queries status", "gRPC")
+Rel(event_listener, eth_node, "Subscribes to events", "WebSocket")
+Rel(event_listener, transaction_processor, "Passes events", "Channel")
+Rel(transaction_processor, signer_service, "Requests signatures", "Method call")
+Rel(transaction_processor, db_client, "Stores state", "SQL")
+Rel(transaction_processor, poly_node, "Submits transactions", "JSON-RPC")
+Rel(db_client, postgres, "Executes queries", "PSQL")
+Rel(metrics_collector, transaction_processor, "Collects metrics", "Instrumentation")
+Rel(config_manager, event_listener, "Provides config", "Struct")
+
+@enduml
