@@ -73,6 +73,157 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/bridge/fees:
+    get:
+      summary: Get current bridge fees
+      description: Retrieve current fee structure for different networks
+      tags: [Bridge Operations]
+      responses:
+        '200':
+          description: Fees retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeeStructure'
+
+  /api/bridge/limits:
+    get:
+      summary: Get transfer limits
+      description: Retrieve minimum and maximum transfer limits
+      tags: [Bridge Operations]
+      responses:
+        '200':
+          description: Limits retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferLimits'
+
+  /api/bridge/tokens:
+    get:
+      summary: Get supported tokens
+      description: Retrieve list of supported tokens and their addresses
+      tags: [Bridge Operations]
+      responses:
+        '200':
+          description: Tokens retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportedTokens'
+
+  /api/bridge/estimate/{amount}:
+    get:
+      summary: Estimate transfer
+      description: Estimate time and fees for a transfer amount
+      tags: [Bridge Operations]
+      parameters:
+        - name: amount
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sourceNetwork
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [ethereum, polygon]
+        - name: targetNetwork
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [ethereum, polygon]
+      responses:
+        '200':
+          description: Estimate calculated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferEstimate'
+
+  /api/admin/transactions:
+    get:
+      summary: List transactions with filters
+      description: Get paginated transactions with filtering options
+      tags: [Admin]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, processing, completed, failed]
+        - name: network
+          in: query
+          schema:
+            type: string
+            enum: [ethereum, polygon]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Transactions retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTransactionList'
+
+  /api/admin/transactions/{id}/retry:
+    post:
+      summary: Retry failed transaction
+      description: Manually retry processing of a failed transaction
+      tags: [Admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Retry initiated
+        '404':
+          description: Transaction not found
+
+  /api/admin/pause:
+    post:
+      summary: Emergency pause bridge
+      description: Immediately pause all bridge operations
+      tags: [Admin]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Bridge paused successfully
+
+  /api/system/status:
+    get:
+      summary: Detailed system status
+      description: Get detailed status of all system components
+      tags: [Monitoring]
+      responses:
+        '200':
+          description: System status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemStatus'
+
   /health:
     get:
       summary: Health check
@@ -253,6 +404,146 @@ components:
               type: integer
             pages:
               type: integer
+
+    AdminTransactionList:
+      type: object
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminTransaction'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    AdminTransaction:
+      allOf:
+        - $ref: '#/components/schemas/TransactionStatus'
+        - type: object
+          properties:
+            retryCount:
+              type: integer
+            lastError:
+              type: string
+            internalId:
+              type: string
+
+    FeeStructure:
+      type: object
+      properties:
+        ethereumToPolygon:
+          type: object
+          properties:
+            percentage:
+              type: string
+            minimum:
+              type: string
+            maximum:
+              type: string
+        polygonToEthereum:
+          type: object
+          properties:
+            percentage:
+              type: string
+            minimum:
+              type: string
+            maximum:
+              type: string
+
+    TransferLimits:
+      type: object
+      properties:
+        minimum:
+          type: string
+        maximum:
+          type: string
+        dailyLimit:
+          type: string
+
+    SupportedTokens:
+      type: object
+      properties:
+        ethereum:
+          type: array
+          items:
+            $ref: '#/components/schemas/TokenInfo'
+        polygon:
+          type: array
+          items:
+            $ref: '#/components/schemas/TokenInfo'
+
+    TokenInfo:
+      type: object
+      properties:
+        symbol:
+          type: string
+        name:
+          type: string
+        address:
+          type: string
+        decimals:
+          type: integer
+
+    TransferEstimate:
+      type: object
+      properties:
+        estimatedTime:
+          type: integer
+          description: Estimated time in seconds
+        bridgeFee:
+          type: string
+        totalAmount:
+          type: string
+        networkFees:
+          type: object
+          properties:
+            source:
+              type: string
+            target:
+              type: string
+
+    SystemStatus:
+      type: object
+      properties:
+        overall:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        components:
+          type: object
+          properties:
+            database:
+              $ref: '#/components/schemas/ComponentStatus'
+            ethereumNode:
+              $ref: '#/components/schemas/ComponentStatus'
+            polygonNode:
+              $ref: '#/components/schemas/ComponentStatus'
+            messageQueue:
+              $ref: '#/components/schemas/ComponentStatus'
+            signingService:
+              $ref: '#/components/schemas/ComponentStatus'
+
+    ComponentStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        latency:
+          type: integer
+        lastCheck:
+          type: string
+          format: date-time
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        pages:
+          type: integer
 
     Error:
       type: object
