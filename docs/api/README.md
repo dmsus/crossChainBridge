@@ -18,14 +18,14 @@ X-API-Key: your-api-key-here
 ### 1. Initiate Cross-Chain Transfer
 POST /api/bridge/lock
 Content-Type: application/json
-
+```json
 {
 "sourceNetwork": "ethereum",
 "targetNetwork": "polygon",
 "amount": "1000000000000000000",
 "targetAddress": "0x742E6F70B07533E0455c2e1A588aBc66a76b2f81"
 }
-
+```
 ### 2. Check Transaction Status
 GET /api/bridge/status/0x1234567890abcdef...
 
@@ -50,6 +50,7 @@ All errors follow the standard format:
     "field": "targetAddress"
   }
 }
+```
 Rate Limiting
 Bridge Operations: 10 requests per minute per IP
 
