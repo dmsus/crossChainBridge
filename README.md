@@ -40,6 +40,6 @@ cd crossChainBridge
 # Explore documentation
 open docs/architecture/c4-model.md
 open docs/api/openapi.yaml
-
+```
 ## License
 MIT
