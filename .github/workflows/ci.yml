@@ -32,17 +32,24 @@ jobs:
         cd relayer
         go build -v ./...
 
-  # 2. ПРОВЕРКА FOUNDRY КОНТРАКТОВ (НОВАЯ!)
+  # 2. ПРОВЕРКА FOUNDRY КОНТРАКТОВ
   test-foundry:
     name: Test Foundry Contracts
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: recursive
     
     - name: Setup Foundry
       uses: foundry-rs/foundry-toolchain@v1
       with:
         version: nightly
+    
+    - name: Install dependencies
+      run: |
+        cd contracts
+        forge install
     
     - name: Build contracts
       run: |
@@ -76,4 +83,3 @@ jobs:
     
     - name: Dependency Review
       uses: actions/dependency-review-action@v3
-        fi
