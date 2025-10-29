@@ -7,7 +7,7 @@ Enterprise-grade cross-chain bridge implementation between Ethereum Sepolia and 
 **Phase 2 Starting** 🚧 - Smart contracts development
 
 ## Technology Stack
-- **Smart Contracts**: Solidity, Hardhat
+- **Smart Contracts**: Solidity, Foundry
 - **Relay Service**: Go, PostgreSQL  
 - **Infrastructure**: Docker, Kubernetes, Prometheus
 - **Networks**: Ethereum Sepolia, Polygon Amoy
@@ -27,7 +27,7 @@ Enterprise-grade cross-chain bridge implementation between Ethereum Sepolia and 
 - Technology stack decisions
 
 ### 🚧 Phase 2: Smart Contracts (IN PROGRESS)
-- Hardhat project setup
+- Foundry project setup ✅
 - Bridge contract development
 - Testing and deployment
 

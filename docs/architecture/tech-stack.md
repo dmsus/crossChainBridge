@@ -9,7 +9,9 @@
 
 ### Smart Contracts
 - **Solidity 0.8.x** - Security-focused with overflow protection
-- **Hardhat** - Development environment with testing
+- **Foundry** - Modern development environment with fast testing
+- **Forge** - Build and test framework
+- **Cast** - CLI for chain interactions
 - **OpenZeppelin** - Audited contract libraries
 
 ## Infrastructure
@@ -41,8 +43,8 @@
 - **JSON Support** - Flexible event storage
 - **Production Ready** - Enterprise-grade reliability
 
-### Why Hardhat?
-- **Developer Experience** - Excellent testing and debugging
-- **TypeScript Support** - Type-safe contract development
-- **Plugin Ecosystem** - Rich tooling integration
-- **Community** - Widely adopted and supported
+### Why Foundry?
+- **Performance** - Tests run 10x faster than Hardhat
+- **Offline Capability** - No internet required for compilation
+- **Modern Tooling** - Rust-based, actively maintained
+- **Industry Standard** - Used by top DeFi projects (Uniswap, Aave)

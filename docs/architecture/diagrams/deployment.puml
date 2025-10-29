@@ -5,13 +5,13 @@ System_Ext(developer_machine, "Developer Machine", "Local Development")
 
 Container(relay_local, "Go Relay Service", "Docker", "Local bridge processing")
 Container(postgres_local, "PostgreSQL", "Docker", "Local database")
-Container(hardhat_local, "Hardhat Node", "Node.js", "Local blockchain simulation")
+Container(foundry_local, "Foundry Anvil", "Rust", "Local blockchain simulation")
 
 System_Ext(infura_dev, "Infura", "Development Node Access")
 
 Rel(developer_machine, relay_local, "Develops and tests", "localhost:8080")
 Rel(relay_local, postgres_local, "Stores state", "localhost:5432")
-Rel(relay_local, hardhat_local, "Local testing", "localhost:8545")
+Rel(relay_local, foundry_local, "Local testing", "localhost:8545")
 Rel(relay_local, infura_dev, "Testnet access", "HTTPS/WebSocket")
 
 @enduml

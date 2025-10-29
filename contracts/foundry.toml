@@ -1,0 +1,10 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+
+[fmt]
+line_length = 120
+
+# Указываем использовать системный solc
+solc = "0.8.30"

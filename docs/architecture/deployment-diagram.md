@@ -1,4 +1,3 @@
-
 # Deployment Architecture
 
 ## Development Environment
@@ -9,13 +8,13 @@
 - **Developer Machine**: Local development environment
 - **Go Relay Service**: Docker container for bridge processing
 - **PostgreSQL**: Local database instance
-- **Hardhat Node**: Local blockchain simulation
+- **Foundry Anvil**: Local blockchain simulation (replaces Hardhat)
 - **Infura**: Development node access for testnets
 
 **Connectivity:**
 - Developer interacts with relay service on localhost:8080
 - Relay service connects to local PostgreSQL on port 5432
-- Local testing via Hardhat node on localhost:8545
+- Local testing via Foundry Anvil on localhost:8545
 - External testnet access via Infura WebSocket/HTTPS
 
 ## Production Deployment
@@ -56,3 +55,9 @@
 - **Resource Metrics**: CPU, memory, network utilization
 - **Business Metrics**: Transaction volume, success rates, latency
 - **Health Checks**: Automated service health validation
+
+## Development Tools Stack
+- **Smart Contracts**: Foundry (Forge, Anvil, Cast)
+- **Local Blockchain**: Foundry Anvil for testing
+- **Contract Testing**: Forge test framework
+- **Deployment Scripts**: Forge scripts
