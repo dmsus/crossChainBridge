@@ -8,3 +8,11 @@ line_length = 120
 
 # Указываем использовать системный solc
 solc = "0.8.30"
+
+[rpc_endpoints]
+sepolia = "https://sepolia.infura.io/v3/${INFURA_API_KEY}"
+amoy = "https://polygon-amoy.infura.io/v3/${INFURA_API_KEY}"
+
+[etherscan]
+sepolia = { key = "${ETHERSCAN_API_KEY}" }
+amoy = { key = "${POLYGONSCAN_API_KEY}" }
