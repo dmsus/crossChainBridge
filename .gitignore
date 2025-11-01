@@ -1,3 +1,6 @@
 temp_backup/
 crossChainBridge-recovered/
 temp_backup/
+.env
+.env.local
+.env.*

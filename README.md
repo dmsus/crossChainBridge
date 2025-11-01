@@ -87,6 +87,15 @@ open docs/api/openapi.yaml
 - Deploy to testnets (Issues #11, #12)
 - Implement Go relay service (Phase 3)
 - Setup monitoring and infrastructure
+## Deployed Contracts
+
+### Ethereum Sepolia
+- **TokenEthereum**: [0x5CFdE9C777be47FC4a401c918181DD92BA4c81Cc](https://sepolia.etherscan.io/address/0x5CFdE9C777be47FC4a401c918181DD92BA4c81Cc)
+- **BridgeEthereum**: [0xc2766cBFc1Dc3E95058bf09c929E7D6226b10187](https://sepolia.etherscan.io/address/0xc2766cBFc1Dc3E95058bf09c929E7D6226b10187)
+
+### Polygon Amoy  
+- **TokenPolygon**: [0x5CFdE9C777be47FC4a401c918181DD92BA4c81Cc](https://amoy.polygonscan.com/address/0x5CFdE9C777be47FC4a401c918181DD92BA4c81Cc)
+- **BridgePolygon**: [0xc2766cBFc1Dc3E95058bf09c929E7D6226b10187](https://amoy.polygonscan.com/address/0xc2766cBFc1Dc3E95058bf09c929E7D6226b10187)
 
 📄 License
 MIT
