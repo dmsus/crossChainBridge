@@ -1,70 +1,63 @@
 package config
 
 import (
-	"log"
-	"os"
-	"path/filepath"
+    "fmt"
+    "log"
 
-	"github.com/spf13/viper"
+    "github.com/spf13/viper"
 )
 
-type Config struct {
-	Ethereum struct {
-		RPCURL      string `mapstructure:"rpc_url"`
-		WSURL       string `mapstructure:"ws_url"`
-		BridgeAddr  string `mapstructure:"bridge_addr"`
-		PrivateKey  string `mapstructure:"private_key"`
-	} `mapstructure:"ethereum"`
-	
-	Polygon struct {
-		RPCURL      string `mapstructure:"rpc_url"`
-		WSURL       string `mapstructure:"ws_url"`
-		BridgeAddr  string `mapstructure:"bridge_addr"`
-		PrivateKey  string `mapstructure:"private_key"`
-	} `mapstructure:"polygon"`
-	
-	Database struct {
-		Host     string `mapstructure:"host"`
-		Port     string `mapstructure:"port"`
-		Name     string `mapstructure:"name"`
-		User     string `mapstructure:"user"`
-		Password string `mapstructure:"password"`
-	} `mapstructure:"database"`
-	
-	Service struct {
-		LogLevel    string `mapstructure:"log_level"`
-		MetricsPort string `mapstructure:"metrics_port"`
-		APIPort     string `mapstructure:"api_port"`
-	} `mapstructure:"service"`
+type EthereumConfig struct {
+    RPCURL     string `mapstructure:"rpc_url"`
+    WsURL      string `mapstructure:"ws_url"`
+    BridgeAddr string `mapstructure:"bridge_addr"`
+    PrivateKey string `mapstructure:"private_key"`
 }
 
-func LoadConfig(env string) (*Config, error) {
-	// Get the current working directory
-	wd, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
+type PolygonConfig struct {
+    RPCURL     string `mapstructure:"rpc_url"`
+    WsURL      string `mapstructure:"ws_url"`
+    BridgeAddr string `mapstructure:"bridge_addr"`
+    PrivateKey string `mapstructure:"private_key"`
+}
 
-	configFile := ".env." + env + ".yaml"
-	fullPath := filepath.Join(wd, configFile)
-	
-	log.Printf("Loading config from: %s", fullPath)
-	
-	viper.SetConfigFile(fullPath)
-	viper.SetConfigType("yaml")
-	viper.AutomaticEnv()
+type DatabaseConfig struct {
+    Host     string `mapstructure:"host"`
+    Port     string `mapstructure:"port"`
+    Name     string `mapstructure:"name"`
+    User     string `mapstructure:"user"`
+    Password string `mapstructure:"password"`
+}
 
-	if err := viper.ReadInConfig(); err != nil {
-		log.Printf("No config file found at %s, error: %v", fullPath, err)
-		log.Printf("Using environment variables only")
-	} else {
-		log.Printf("✅ Config file loaded successfully: %s", fullPath)
-	}
+type ServiceConfig struct {
+    LogLevel    string `mapstructure:"log_level"`
+    MetricsPort string `mapstructure:"metrics_port"`
+    APIPort     string `mapstructure:"api_port"`
+}
 
-	var config Config
-	if err := viper.Unmarshal(&config); err != nil {
-		return nil, err
-	}
+type Config struct {
+    Ethereum EthereumConfig `mapstructure:"ethereum"`
+    Polygon  PolygonConfig  `mapstructure:"polygon"`
+    Database DatabaseConfig `mapstructure:"database"`
+    Service  ServiceConfig  `mapstructure:"service"`
+}
 
-	return &config, nil
+func Load(env string) (*Config, error) {
+    v := viper.New()
+    
+    v.SetConfigName(".env." + env)
+    v.SetConfigType("yaml")
+    v.AddConfigPath(".")
+    
+    if err := v.ReadInConfig(); err != nil {
+        return nil, fmt.Errorf("failed to read config file: %v", err)
+    }
+    
+    var config Config
+    if err := v.Unmarshal(&config); err != nil {
+        return nil, fmt.Errorf("failed to unmarshal config: %v", err)
+    }
+    
+    log.Printf("✅ Config loaded for environment: %s", env)
+    return &config, nil
 }
