@@ -114,14 +114,15 @@ func Load(env string) (*Config, error) {
     // Устанавливаем окружение
     cfg.Environment = env
     
-    // Вручную заменяем переменные окружения в приватных ключах
+    // ВАЖНО: Полная подстановка переменных окружения перед валидацией
     cfg.Ethereum.PrivateKey = os.ExpandEnv(cfg.Ethereum.PrivateKey)
     cfg.Polygon.PrivateKey = os.ExpandEnv(cfg.Polygon.PrivateKey)
+    cfg.Database.Password = os.ExpandEnv(cfg.Database.Password)
     
     // Устанавливаем значения по умолчанию
     cfg.setDefaults()
     
-    // Валидация конфигурации
+    // СТРОГАЯ валидация после подстановки
     if err := cfg.Validate(); err != nil {
         return nil, fmt.Errorf("config validation failed: %v", err)
     }
@@ -187,8 +188,9 @@ func (c *Config) setDefaults() {
     }
 }
 
-// Validate выполняет валидацию конфигурации
+// Validate выполняет строгую валидацию конфигурации
 func (c *Config) Validate() error {
+    // Проверка обязательных полей
     if c.Environment == "" {
         return fmt.Errorf("environment is required")
     }
@@ -205,25 +207,44 @@ func (c *Config) Validate() error {
         return fmt.Errorf("polygon rpc_url is required")
     }
     
-    // Валидация приватных ключей
-    if c.Ethereum.PrivateKey == "" {
-        return fmt.Errorf("ethereum private_key is required")
-    }
-    
-    if c.Polygon.PrivateKey == "" {
-        return fmt.Errorf("polygon private_key is required")
-    }
-    
-    // Если приватный ключ содержит ${, значит переменная окружения не подставилась
+    // ЖЕСТКАЯ проверка: если остались ${}, значит переменные не подставились
     if strings.Contains(c.Ethereum.PrivateKey, "${") {
-        log.Printf("⚠️ Ethereum private key contains unexpanded environment variable")
+        return fmt.Errorf("ethereum private key contains unsubstituted environment variable: %s", c.Ethereum.PrivateKey)
     }
     
     if strings.Contains(c.Polygon.PrivateKey, "${") {
-        log.Printf("⚠️ Polygon private key contains unexpanded environment variable")
+        return fmt.Errorf("polygon private key contains unsubstituted environment variable: %s", c.Polygon.PrivateKey)
+    }
+    
+    // СТРОГАЯ проверка формата приватных ключей
+    if !isValidPrivateKey(c.Ethereum.PrivateKey) {
+        return fmt.Errorf("invalid ethereum private key format: must be 64 hex characters, got %d", len(c.Ethereum.PrivateKey))
+    }
+    
+    if !isValidPrivateKey(c.Polygon.PrivateKey) {
+        return fmt.Errorf("invalid polygon private key format: must be 64 hex characters, got %d", len(c.Polygon.PrivateKey))
     }
     
     return nil
+}
+
+// isValidPrivateKey проверяет валидность приватного ключа
+func isValidPrivateKey(key string) bool {
+    if key == "" {
+        return false
+    }
+    
+    cleanKey := strings.TrimPrefix(key, "0x")
+    if len(cleanKey) != 64 {
+        return false
+    }
+    
+    for _, c := range cleanKey {
+        if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+            return false
+        }
+    }
+    return true
 }
 
 // GetDatabaseDSN возвращает DSN строку для PostgreSQL
