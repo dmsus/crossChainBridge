@@ -22,7 +22,7 @@ Transition from System Analyst to **Blockchain Backend Developer** targeting **$
 - [Architecture](./docs/architecture/) - System design and C4 models
 - [API Specification](./docs/api/) - REST API documentation  
 - [Analysis](./docs/analysis/) - Requirements and user stories
-- [Configuration](.relayer/docs/configuration/) - Environment-based config management
+- [Configuration](./relayer/docs/configuration/) - Environment-based config management
 - [Smart Contracts](./contracts/) - Production-ready bridge contracts
 
 ## 🚀 Development Progress
