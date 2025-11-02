@@ -10,31 +10,40 @@ import (
 
     "github.com/dmsus/crossChainBridge/relayer/internal/config"
     "github.com/dmsus/crossChainBridge/relayer/internal/eventlistener"
+    "github.com/dmsus/crossChainBridge/relayer/internal/processor"
     "github.com/dmsus/crossChainBridge/relayer/internal/sender"
+    "github.com/dmsus/crossChainBridge/relayer/pkg/database"
 )
 
 func main() {
-    log.Println("🚀 Starting Cross-Chain Bridge Relayer")
+    log.Println("🚀 Starting Cross-Chain Bridge Relayer with Idempotency")
 
     cfg, err := config.Load("staging")
     if err != nil {
         log.Fatalf("❌ Failed to load config: %v", err)
     }
 
-    // Создаем Ethereum listener
-    ethListener, err := eventlistener.NewEthereumListener(eventlistener.Config{
-        RPCEndpoint:    cfg.Ethereum.RPCURL,
-        WSEndpoint:     cfg.Ethereum.WsURL,
-        ContractAddr:   cfg.Ethereum.BridgeAddr,
-        ReconnectDelay: 5 * time.Second,
-        MaxRetries:     10,
+    // Создаем подключение к БД
+    dbRepo, err := database.SetupDatabase(database.Config{
+        Host:     cfg.Database.Host,
+        Port:     cfg.Database.Port,
+        User:     cfg.Database.User,
+        Password: cfg.Database.Password,
+        DBName:   cfg.Database.Name,
+        SSLMode:  "disable",
     })
     if err != nil {
-        log.Fatalf("❌ Failed to create Ethereum listener: %v", err)
+        log.Fatalf("❌ Failed to setup database: %v", err)
     }
-    defer ethListener.Stop()
+    defer dbRepo.Close()
 
-    // Создаем Polygon sender с поддержкой EIP-712
+    // Проверяем здоровье БД
+    if err := dbRepo.HealthCheck(context.Background()); err != nil {
+        log.Fatalf("❌ Database health check failed: %v", err)
+    }
+    log.Println("✅ Database health check passed")
+
+    // Создаем Polygon sender
     polygonSender, err := sender.NewPolygonSender(sender.Config{
         RPCEndpoint:  cfg.Polygon.RPCURL,
         PrivateKey:   cfg.Polygon.PrivateKey,
@@ -51,18 +60,43 @@ func main() {
     }
     log.Println("✅ Polygon sender health check passed")
 
+    // Создаем процессор с идемпотентностью
+    bridgeProcessor := processor.NewBridgeProcessor(processor.Config{
+        PolygonSender: polygonSender,
+        Repository:    dbRepo,
+        MaxRetries:    3,
+    })
+
+    // Восстанавливаем pending транзакции при запуске
+    if err := bridgeProcessor.RecoverPendingTransactions(context.Background()); err != nil {
+        log.Printf("⚠️ Failed to recover pending transactions: %v", err)
+    }
+
+    // Создаем Ethereum listener
+    ethListener, err := eventlistener.NewEthereumListener(eventlistener.Config{
+        RPCEndpoint:    cfg.Ethereum.RPCURL,
+        WSEndpoint:     cfg.Ethereum.WsURL,
+        ContractAddr:   cfg.Ethereum.BridgeAddr,
+        ReconnectDelay: 5 * time.Second,
+        MaxRetries:     10,
+    })
+    if err != nil {
+        log.Fatalf("❌ Failed to create Ethereum listener: %v", err)
+    }
+    defer ethListener.Stop()
+
     ctx, cancel := context.WithCancel(context.Background())
     defer cancel()
 
-    // Запускаем обработку событий с интеграцией Polygon sender
-    go processEvents(ctx, ethListener, polygonSender)
+    // Запускаем обработку событий с идемпотентностью
+    go processEventsWithIdempotency(ctx, ethListener, bridgeProcessor)
 
     // Запускаем listener
     if err := ethListener.Start(ctx); err != nil {
         log.Fatalf("❌ Failed to start Ethereum listener: %v", err)
     }
 
-    log.Println("✅ Relayer started successfully. Waiting for events...")
+    log.Println("✅ Relayer with idempotency started successfully. Waiting for events...")
 
     // Ожидаем сигнал завершения
     sigChan := make(chan os.Signal, 1)
@@ -73,25 +107,22 @@ func main() {
     cancel()
 }
 
-func processEvents(ctx context.Context, listener *eventlistener.EthereumListener, polygonSender *sender.PolygonSender) {
+func processEventsWithIdempotency(ctx context.Context, listener *eventlistener.EthereumListener, processor *processor.BridgeProcessor) {
     for {
         select {
         case event := <-listener.Events():
-            log.Printf("📦 Processing event: user=%s, amount=%s, nonce=%s, targetChain=%s",
+            log.Printf("📦 Received event: user=%s, amount=%s, nonce=%s, targetChain=%s",
                 event.User.Hex(), event.Amount.String(), event.Nonce.String(), event.TargetChainID.String())
             
             // Проверяем, что это перевод в Polygon (chainID 80002)
             if event.TargetChainID.Uint64() == 80002 {
-                log.Println("🎯 This event is for Polygon network, processing...")
+                log.Println("🎯 This event is for Polygon network, processing with idempotency...")
                 
-                // Теперь используем настоящие EIP-712 подписи!
-                // Polygon sender сам генерирует подпись на основе сообщения
-                tx, err := polygonSender.SendReleaseTokens(ctx, event.User, event.Amount, event.Nonce)
-                if err != nil {
-                    log.Printf("❌ Failed to send transaction to Polygon: %v", err)
-                    // TODO: Добавить логику повторных попыток
+                // Обрабатываем событие с гарантией идемпотентности - передаем указатель!
+                if err := processor.ProcessEvent(ctx, &event); err != nil {
+                    log.Printf("❌ Failed to process event: %v", err)
                 } else {
-                    log.Printf("✅ Transaction sent to Polygon: %s", tx.Hash().Hex())
+                    log.Printf("✅ Event processed successfully with idempotency")
                 }
             } else {
                 log.Printf("⚠️ Skipping event for unknown chain: %s", event.TargetChainID.String())
