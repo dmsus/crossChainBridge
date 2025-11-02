@@ -6,7 +6,6 @@ import (
     "os"
     "os/signal"
     "syscall"
-    "time"
 
     "github.com/dmsus/crossChainBridge/relayer/internal/config"
     "github.com/dmsus/crossChainBridge/relayer/internal/eventlistener"
@@ -16,12 +15,19 @@ import (
 )
 
 func main() {
-    log.Println("🚀 Starting Cross-Chain Bridge Relayer with Idempotency")
+    // Определяем окружение (по умолчанию staging)
+    env := getEnvironment()
+    
+    log.Printf("🚀 Starting Cross-Chain Bridge Relayer with environment: %s", env)
 
-    cfg, err := config.Load("staging")
+    // Загружаем конфигурацию
+    cfg, err := config.Load(env)
     if err != nil {
         log.Fatalf("❌ Failed to load config: %v", err)
     }
+
+    // Настраиваем логирование
+    setupLogging(cfg)
 
     // Создаем подключение к БД
     dbRepo, err := database.SetupDatabase(database.Config{
@@ -30,7 +36,7 @@ func main() {
         User:     cfg.Database.User,
         Password: cfg.Database.Password,
         DBName:   cfg.Database.Name,
-        SSLMode:  "disable",
+        SSLMode:  cfg.Database.SSLMode,
     })
     if err != nil {
         log.Fatalf("❌ Failed to setup database: %v", err)
@@ -43,7 +49,7 @@ func main() {
     }
     log.Println("✅ Database health check passed")
 
-    // Создаем Polygon sender
+    // Создаем Polygon sender (БЕЗ GasLimit - уберем это поле)
     polygonSender, err := sender.NewPolygonSender(sender.Config{
         RPCEndpoint:  cfg.Polygon.RPCURL,
         PrivateKey:   cfg.Polygon.PrivateKey,
@@ -64,7 +70,7 @@ func main() {
     bridgeProcessor := processor.NewBridgeProcessor(processor.Config{
         PolygonSender: polygonSender,
         Repository:    dbRepo,
-        MaxRetries:    3,
+        MaxRetries:    cfg.Processor.MaxRetries,
     })
 
     // Восстанавливаем pending транзакции при запуске
@@ -77,8 +83,8 @@ func main() {
         RPCEndpoint:    cfg.Ethereum.RPCURL,
         WSEndpoint:     cfg.Ethereum.WsURL,
         ContractAddr:   cfg.Ethereum.BridgeAddr,
-        ReconnectDelay: 5 * time.Second,
-        MaxRetries:     10,
+        ReconnectDelay: cfg.Processor.RetryDelay,
+        MaxRetries:     cfg.Processor.MaxRetries,
     })
     if err != nil {
         log.Fatalf("❌ Failed to create Ethereum listener: %v", err)
@@ -96,7 +102,7 @@ func main() {
         log.Fatalf("❌ Failed to start Ethereum listener: %v", err)
     }
 
-    log.Println("✅ Relayer with idempotency started successfully. Waiting for events...")
+    log.Printf("✅ Relayer with idempotency started successfully in %s environment. Waiting for events...", env)
 
     // Ожидаем сигнал завершения
     sigChan := make(chan os.Signal, 1)
@@ -105,6 +111,20 @@ func main() {
 
     log.Println("🛑 Shutting down relayer...")
     cancel()
+}
+
+func getEnvironment() string {
+    if env := os.Getenv("APP_ENV"); env != "" {
+        return env
+    }
+    return "staging" // default
+}
+
+func setupLogging(cfg *config.Config) {
+    logLevel := cfg.GetLogLevel()
+    log.Printf("🔧 Log level: %s", logLevel)
+    // Здесь можно добавить настройку структурированного логирования
+    // в зависимости от cfg.Monitoring.LogFormat
 }
 
 func processEventsWithIdempotency(ctx context.Context, listener *eventlistener.EthereumListener, processor *processor.BridgeProcessor) {
@@ -118,7 +138,7 @@ func processEventsWithIdempotency(ctx context.Context, listener *eventlistener.E
             if event.TargetChainID.Uint64() == 80002 {
                 log.Println("🎯 This event is for Polygon network, processing with idempotency...")
                 
-                // Обрабатываем событие с гарантией идемпотентности - передаем указатель!
+                // Обрабатываем событие с гарантией идемпотентности
                 if err := processor.ProcessEvent(ctx, &event); err != nil {
                     log.Printf("❌ Failed to process event: %v", err)
                 } else {
