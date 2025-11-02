@@ -7,7 +7,7 @@ import (
     "math/big"
     "time"
 
-    "github.com/ethereum/go-ethereum/accounts/abi"
+    "github.com/dmsus/crossChainBridge/relayer/internal/signer"
     "github.com/ethereum/go-ethereum/accounts/abi/bind"
     "github.com/ethereum/go-ethereum/common"
     "github.com/ethereum/go-ethereum/core/types"
@@ -21,13 +21,14 @@ type PolygonSender struct {
     privateKey string
     contract   common.Address
     chainID    *big.Int
-    contractABI abi.ABI
+    signer     *signer.EIP712Signer
+    abiEncoder *signer.ABIEncoder
 }
 
 // Config конфигурация для Polygon sender
 type Config struct {
-    RPCEndpoint string
-    PrivateKey  string
+    RPCEndpoint  string
+    PrivateKey   string
     ContractAddr string
 }
 
@@ -47,6 +48,20 @@ func NewPolygonSender(cfg Config) (*PolygonSender, error) {
 
     contract := common.HexToAddress(cfg.ContractAddr)
 
+    // Создаем EIP712 signer
+    eip712Signer, err := signer.NewEIP712Signer(signer.Config{
+        PrivateKey:    cfg.PrivateKey,
+        BridgeAddress: contract,
+        ChainID:       chainID,
+    })
+    if err != nil {
+        client.Close()
+        return nil, fmt.Errorf("failed to create EIP712 signer: %v", err)
+    }
+
+    // Создаем ABI encoder
+    abiEncoder := signer.NewABIEncoder()
+
     log.Printf("✅ Polygon sender initialized: chainID=%d, contract=%s", chainID, contract.Hex())
 
     return &PolygonSender{
@@ -54,21 +69,36 @@ func NewPolygonSender(cfg Config) (*PolygonSender, error) {
         privateKey: cfg.PrivateKey,
         contract:   contract,
         chainID:    chainID,
+        signer:     eip712Signer,
+        abiEncoder: abiEncoder,
     }, nil
 }
 
 // SendReleaseTokens отправляет транзакцию releaseTokens в Polygon
-func (ps *PolygonSender) SendReleaseTokens(ctx context.Context, user common.Address, amount *big.Int, nonce *big.Int, signature []byte) (*types.Transaction, error) {
+func (ps *PolygonSender) SendReleaseTokens(ctx context.Context, user common.Address, amount *big.Int, nonce *big.Int) (*types.Transaction, error) {
     log.Printf("🚀 Preparing releaseTokens transaction: user=%s, amount=%s, nonce=%s", 
         user.Hex(), amount.String(), nonce.String())
 
-    // 1. Создаем транзакцию
+    // 1. Создаем EIP-712 подпись
+    bridgeMessage := &signer.BridgeMessage{
+        User:          user,
+        Amount:        amount,
+        Nonce:         nonce,
+        TargetChainID: ps.chainID,
+    }
+
+    signature, err := ps.signer.SignBridgeMessage(bridgeMessage)
+    if err != nil {
+        return nil, fmt.Errorf("failed to sign bridge message: %v", err)
+    }
+
+    // 2. Создаем транзакцию с настоящей подписью
     tx, err := ps.createReleaseTokensTx(ctx, user, amount, nonce, signature)
     if err != nil {
         return nil, fmt.Errorf("failed to create transaction: %v", err)
     }
 
-    // 2. Отправляем транзакцию
+    // 3. Отправляем транзакцию
     err = ps.client.SendTransaction(ctx, tx)
     if err != nil {
         return nil, fmt.Errorf("failed to send transaction: %v", err)
@@ -76,16 +106,16 @@ func (ps *PolygonSender) SendReleaseTokens(ctx context.Context, user common.Addr
 
     log.Printf("✅ Transaction sent: hash=%s", tx.Hash().Hex())
 
-    // 3. Мониторим подтверждение
+    // 4. Мониторим подтверждение
     go ps.monitorTransaction(ctx, tx.Hash())
 
     return tx, nil
 }
 
-// createReleaseTokensTx создает подписанную транзакцию
+// createReleaseTokensTx создает подписанную транзакцию с ABI кодированием
 func (ps *PolygonSender) createReleaseTokensTx(ctx context.Context, user common.Address, amount *big.Int, nonce *big.Int, signature []byte) (*types.Transaction, error) {
     // Парсим приватный ключ
-    privateKey, err := crypto.HexToECDSA(ps.privateKey[2:]) // убираем 0x префикс
+    privateKey, err := crypto.HexToECDSA(ps.privateKey[2:])
     if err != nil {
         return nil, fmt.Errorf("failed to parse private key: %v", err)
     }
@@ -97,7 +127,7 @@ func (ps *PolygonSender) createReleaseTokensTx(ctx context.Context, user common.
     }
 
     // Устанавливаем параметры газа
-    auth.GasLimit = uint64(300000) // Лимит газа
+    auth.GasLimit = uint64(300000)
     auth.Context = ctx
 
     // Получаем nonce для аккаунта
@@ -112,9 +142,11 @@ func (ps *PolygonSender) createReleaseTokensTx(ctx context.Context, user common.
         return nil, fmt.Errorf("failed to get gas prices: %v", err)
     }
 
-    // Создаем данные для вызова функции releaseTokens
-    // Временная заглушка - будем использовать ABI позже
-    data := ps.encodeReleaseTokensCall(user, amount, nonce, signature)
+    // Кодируем данные вызова через ABI
+    data, err := ps.abiEncoder.EncodeReleaseTokensCall(user, amount, nonce, signature)
+    if err != nil {
+        return nil, fmt.Errorf("failed to encode ABI call: %v", err)
+    }
 
     // Создаем динамическую транзакцию (EIP-1559)
     tx := types.NewTx(&types.DynamicFeeTx{
@@ -139,16 +171,13 @@ func (ps *PolygonSender) createReleaseTokensTx(ctx context.Context, user common.
 
 // getGasPrices получает актуальные цены на газ для EIP-1559
 func (ps *PolygonSender) getGasPrices(ctx context.Context) (*big.Int, *big.Int, error) {
-    // Получаем base fee
     header, err := ps.client.HeaderByNumber(ctx, nil)
     if err != nil {
         return nil, nil, fmt.Errorf("failed to get header: %v", err)
     }
 
-    // Tip (priority fee) - рекомендуем 1.5 Gwei для Polygon
     gasTipCap := big.NewInt(1500000000) // 1.5 Gwei
 
-    // Fee cap = base fee * 2 + tip (стандартная формула)
     baseFee := header.BaseFee
     if baseFee == nil {
         baseFee = big.NewInt(10000000000) // fallback: 10 Gwei
@@ -165,17 +194,6 @@ func (ps *PolygonSender) getGasPrices(ctx context.Context) (*big.Int, *big.Int, 
     return gasTipCap, gasFeeCap, nil
 }
 
-// encodeReleaseTokensCall кодирует вызов функции releaseTokens
-// ВРЕМЕННАЯ РЕАЛИЗАЦИЯ - позже заменим на ABI
-func (ps *PolygonSender) encodeReleaseTokensCall(user common.Address, amount *big.Int, nonce *big.Int, signature []byte) []byte {
-    // Заглушка - возвращаем простые данные
-    // В реальности нужно использовать ABI кодирование
-    log.Printf("📝 Encoding releaseTokens call (temporary implementation)")
-    
-    // Временные данные - просто логируем
-    return []byte("releaseTokens_call")
-}
-
 // monitorTransaction отслеживает статус транзакции
 func (ps *PolygonSender) monitorTransaction(ctx context.Context, txHash common.Hash) {
     log.Printf("👀 Monitoring transaction: %s", txHash.Hex())
@@ -188,7 +206,6 @@ func (ps *PolygonSender) monitorTransaction(ctx context.Context, txHash common.H
         case <-ticker.C:
             receipt, err := ps.client.TransactionReceipt(ctx, txHash)
             if err != nil {
-                // Транзакция еще не подтверждена
                 continue
             }
 
@@ -224,4 +241,15 @@ func (ps *PolygonSender) HealthCheck(ctx context.Context) error {
         return fmt.Errorf("Polygon connection failed: %v", err)
     }
     return nil
+}
+
+// VerifySignature проверяет EIP-712 подпись
+func (ps *PolygonSender) VerifySignature(user common.Address, amount *big.Int, nonce *big.Int, signature []byte) (bool, common.Address, error) {
+    bridgeMessage := &signer.BridgeMessage{
+        User:          user,
+        Amount:        amount,
+        Nonce:         nonce,
+        TargetChainID: ps.chainID,
+    }
+    return ps.signer.VerifySignature(bridgeMessage, signature)
 }

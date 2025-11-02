@@ -34,7 +34,7 @@ func main() {
     }
     defer ethListener.Stop()
 
-    // Создаем Polygon sender
+    // Создаем Polygon sender с поддержкой EIP-712
     polygonSender, err := sender.NewPolygonSender(sender.Config{
         RPCEndpoint:  cfg.Polygon.RPCURL,
         PrivateKey:   cfg.Polygon.PrivateKey,
@@ -84,12 +84,9 @@ func processEvents(ctx context.Context, listener *eventlistener.EthereumListener
             if event.TargetChainID.Uint64() == 80002 {
                 log.Println("🎯 This event is for Polygon network, processing...")
                 
-                // ВРЕМЕННО: используем заглушку для подписи
-                // В #17 задаче реализуем настоящие EIP-712 подписи
-                fakeSignature := []byte("fake_signature_for_testing")
-                
-                // Отправляем транзакцию в Polygon
-                tx, err := polygonSender.SendReleaseTokens(ctx, event.User, event.Amount, event.Nonce, fakeSignature)
+                // Теперь используем настоящие EIP-712 подписи!
+                // Polygon sender сам генерирует подпись на основе сообщения
+                tx, err := polygonSender.SendReleaseTokens(ctx, event.User, event.Amount, event.Nonce)
                 if err != nil {
                     log.Printf("❌ Failed to send transaction to Polygon: %v", err)
                     // TODO: Добавить логику повторных попыток
