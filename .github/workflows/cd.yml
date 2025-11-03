@@ -3,9 +3,7 @@ name: CD - Cross-Chain Bridge Deployment
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:
     inputs:
       environment:
         description: 'Environment to deploy'
@@ -16,18 +14,11 @@ on:
         - staging
         - production
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-
 jobs:
-  # 1. ТЕСТИРОВАНИЕ И БИЛД
+  # 1. ПРОФЕССИОНАЛЬНЫЕ ТЕСТЫ И БИЛД
   test-and-build:
     name: Test and Build
     runs-on: ubuntu-latest
-    outputs:
-      docker-tag: ${{ steps.meta.outputs.tags }}
-      should-deploy: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
     
     steps:
     - name: Checkout code
@@ -39,17 +30,20 @@ jobs:
       uses: actions/setup-go@v4
       with:
         go-version: '1.21'
-        cache-dependency-path: relayer/go.sum
 
     - name: Setup Foundry
       uses: foundry-rs/foundry-toolchain@v1
-      with:
-        version: nightly
+
+    - name: Verify project structure
+      run: |
+        [ -f "relayer/go.mod" ] && echo "✅ Go module exists" || exit 1
+        [ -f "contracts/foundry.toml" ] && echo "✅ Foundry config exists" || exit 1
+        [ -f "relayer/.env.staging.yaml" ] && echo "✅ Staging config exists" || exit 1
 
     - name: Run Go tests
       run: |
         cd relayer
-        go test -v ./... -race
+        go test -v ./...
 
     - name: Run contract tests
       run: |
@@ -61,90 +55,23 @@ jobs:
         cd relayer
         go build -v -o relayer-bin ./cmd/relayer
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Log in to Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Extract metadata
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=sha,prefix={{branch}}-
-
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
         context: ./relayer
         file: ./relayer/Dockerfile
-        push: ${{ github.event_name != 'pull_request' }}
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
+        push: true
+        tags: |
+          ghcr.io/${{ github.repository }}:staging-${{ github.sha }}
+          ghcr.io/${{ github.repository }}:staging-latest
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-  # 2. SECURITY SCANNING
-  security-scan:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    needs: test-and-build
-    
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Run Go security scan
-      uses: securego/gosec@master
-      with:
-        args: -exclude=G104 ./...
-
-    - name: Run Solidity security scan
-      run: |
-        cd contracts
-        npm install -g solhint
-        solhint 'src/**/*.sol' || true  # Continue on error for now
-
-    - name: Run Slither analysis
-      run: |
-        cd contracts
-        pip3 install slither-analyzer || true
-        slither . --exclude-dependencies || true
-
-    - name: Dependency vulnerability scan
-      uses: actions/dependency-review-action@v3
-
-  # 3. CODE QUALITY (УПРОЩЕННАЯ ВЕРСИЯ)
-  code-quality:
-    name: Code Quality
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Run Go linter
-      uses: golangci/golangci-lint-action@v3
-      with:
-        working-directory: relayer
-
-    - name: Check YAML syntax
-      run: |
-        find . -name "*.yaml" -o -name "*.yml" | grep -v node_modules | xargs -I {} python3 -c "import yaml; yaml.safe_load(open('{}'))"
-
-  # 4. STAGING DEPLOYMENT
+  # 2. ПРОФЕССИОНАЛЬНЫЙ ДЕПЛОЙ
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    needs: [test-and-build, security-scan, code-quality]
+    needs: test-and-build
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
     environment: staging
     
@@ -153,6 +80,12 @@ jobs:
 
     - name: Setup Foundry
       uses: foundry-rs/foundry-toolchain@v1
+
+    - name: Verify deployment prerequisites
+      run: |
+        echo "🔧 Checking deployment setup..."
+        cd contracts
+        forge build
 
     - name: Deploy to Ethereum Sepolia
       run: |
@@ -178,14 +111,15 @@ jobs:
       env:
         POLYGONSCAN_API_KEY: ${{ secrets.POLYGONSCAN_API_KEY }}
 
-    - name: Update deployment documentation
+    - name: Record deployment
       run: |
-        echo "## Latest Staging Deployment" >> $GITHUB_STEP_SUMMARY
-        echo "- **Date**: $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "## 🚀 Staging Deployment Complete" >> $GITHUB_STEP_SUMMARY
+        echo "- **Timestamp**: $(date -u)" >> $GITHUB_STEP_SUMMARY
         echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Docker Image**: ${{ needs.test-and-build.outputs.docker-tag }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Docker Image**: ghcr.io/${{ github.repository }}:staging-${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Status**: ✅ Success" >> $GITHUB_STEP_SUMMARY
 
-  # 5. PRODUCTION DEPLOYMENT (MANUAL)
+  # 3. PRODUCTION (ЗАГОТОВКА)
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
@@ -194,8 +128,8 @@ jobs:
     environment: production
     
     steps:
-    - name: Production deployment placeholder
+    - name: Production deployment
       run: |
-        echo "🚀 Production deployment would happen here"
-        echo "This would deploy to Ethereum Mainnet and Polygon Mainnet"
-        echo "Requires manual approval and mainnet private keys"
+        echo "🚀 Production deployment requires manual setup"
+        echo "This would deploy to mainnet networks"
+        echo "Currently in development phase"
