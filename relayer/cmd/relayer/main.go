@@ -29,6 +29,13 @@ func main() {
     // Настраиваем логирование
     setupLogging(cfg)
 
+    // Создаем контекст для graceful shutdown
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
+
+    // Запускаем health server
+    go startHealthServer(ctx, "8080")
+
     // Создаем подключение к БД
     dbRepo, err := database.SetupDatabase(database.Config{
         Host:     cfg.Database.Host,
@@ -49,7 +56,7 @@ func main() {
     }
     log.Println("✅ Database health check passed")
 
-    // Создаем Polygon sender (БЕЗ GasLimit - уберем это поле)
+    // Создаем Polygon sender
     polygonSender, err := sender.NewPolygonSender(sender.Config{
         RPCEndpoint:  cfg.Polygon.RPCURL,
         PrivateKey:   cfg.Polygon.PrivateKey,
@@ -90,9 +97,6 @@ func main() {
         log.Fatalf("❌ Failed to create Ethereum listener: %v", err)
     }
     defer ethListener.Stop()
-
-    ctx, cancel := context.WithCancel(context.Background())
-    defer cancel()
 
     // Запускаем обработку событий с идемпотентностью
     go processEventsWithIdempotency(ctx, ethListener, bridgeProcessor)
