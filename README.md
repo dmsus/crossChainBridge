@@ -3,57 +3,59 @@
 **Production-ready cross-chain bridge implementation between Ethereum Sepolia and Polygon Amoy testnets.**
 
 ## 🎯 Project Status
-**Phase 1 Completed** ✅ - Architecture and planning phase finished  
-**Phase 2 Completed** ✅ - Smart contracts development finished  
-**Phase 3 Completed** ✅ - Go relay service with idempotency finished  
-**Phase 4 Starting** 🔜 - Infrastructure and testing
-
+- **Phase 1**: ✅ Completed - Architecture and planning
+- **Phase 2**: ✅ Completed - Smart contracts development  
+- **Phase 3**: ✅ Completed - Go relay service with idempotency
+- **Phase 4**: 🚧 In Progress - Infrastructure and testing
 
 ## 🛠 Technology Stack
 - **Smart Contracts**: Solidity, Foundry, OpenZeppelin
 - **Relay Service**: Go, PostgreSQL, Docker  
 - **Blockchain**: Ethereum Sepolia (11155111), Polygon Amoy (80002)
-- **Infrastructure**: Docker, Kubernetes, Prometheus
+- **Infrastructure**: Docker, Kubernetes, Prometheus, Grafana
 - **Security**: EIP-712 Signatures, Reentrancy Protection, Idempotency
 
 ## 📚 Documentation
 - [Architecture](./docs/architecture/) - System design and C4 models
 - [API Specification](./docs/api/) - REST API documentation  
 - [Analysis](./docs/analysis/) - Requirements and user stories
-- [Configuration](./relayer/docs/) - Environment-based config management
 - [Smart Contracts](./contracts/) - Production-ready bridge contracts
 
-## 🚀 Development Progress
+## 🚀 Quick Start
 
-### ✅ Phase 1: Analytics & Planning (COMPLETED)
-- System architecture and C4 models
-- Functional and non-functional requirements  
-- User stories and use cases
-- API specification (OpenAPI 3.0)
-- Technology stack decisions
+### Prerequisites
+- Go 1.21+
+- PostgreSQL 14+
+- Foundry
+- Docker
 
-### ✅ Phase 2: Smart Contracts (COMPLETED)
-- **BridgeEthereum.sol** - Token locking contract with event emission
-- **BridgePolygon.sol** - Token release contract with EIP-712 signatures  
-- **Token Contracts** - ERC20 tokens for both networks
-- **Comprehensive Test Suite** - 13/13 tests passing (100% coverage)
-- Security features: ReentrancyGuard, input validation, nonce tracking
+### Running the Relay Service
+```bash
+# Development environment
+APP_ENV=dev go run cmd/relayer/main.go
 
-### ✅ Phase 3: Go Relay Service (COMPLETED)
-- **Ethereum Event Listener** - Real-time WebSocket subscription
-- **Polygon Transaction Sender** - EIP-1559 transactions with gas optimization
-- **EIP-712 Cryptographic Signatures** - Secure cross-chain verification
-- **PostgreSQL Idempotency** - Guaranteed exactly-once processing
-- **Configuration Management** - Environment-based config system
+# Staging environment (default)
+go run cmd/relayer/main.go
 
+# With Docker
+docker-compose up -d
+```
+## Testing
+```bash
+# Smart Contracts
+cd contracts
+forge test -vv
+
+# Go Service
+cd relayer
+go test ./...
+```
 ## 🏗️ System Architecture
+
 Ethereum Sepolia → Event Listener → Idempotency Check → EIP-712 Signer → Polygon Amoy
-✅ ✅ ✅ ✅ ✅
-
-
-### 📊 Smart Contracts Overview
-
-#### BridgeEthereum.sol
+       ✅                  ✅                 ✅              ✅             ✅
+## Smart Contracts Overview
+## BridgeEthereum.sol
 ```solidity
 function lockTokens(uint256 amount, address targetAddress, uint256 targetChainId)
 ```
@@ -63,7 +65,7 @@ function lockTokens(uint256 amount, address targetAddress, uint256 targetChainId
 
 - Full input validation and security checks
 
-#### BridgePolygon.sol
+## BridgePolygon.sol
 ```solidity
 function releaseTokens(address user, uint256 amount, uint256 nonce, bytes memory signature)
 ```
@@ -73,7 +75,7 @@ function releaseTokens(address user, uint256 amount, uint256 nonce, bytes memory
 
 - Nonce-based idempotency protection
 
-## Key Features
+## 🔑 Key Features
 ## Security
 - EIP-712 Signatures - Cryptographic proof of legitimacy
 
@@ -101,85 +103,108 @@ function releaseTokens(address user, uint256 amount, uint256 nonce, bytes memory
 
 - Batch Processing - Efficient event handling
 
-## Deployed Contracts
+## 📊 Deployed Contracts
 ## Ethereum Sepolia
-- **TokenEthereum**: 0x5CFdE9C777be47FC4a401c918181DD92BA4c81Cc
+- **TokenEthereum***: 0x4Bf1aACD4B796fEeE5373E28D3b2A218B5806D0b
 
-- **BridgeEthereum**: 0xc2766cBFc1Dc3E95058bf09c929E7D6226b10187
+- **BridgeEthereum**: 0xEc609236c7f2Daa6A76D7a90dfa6aC5778fC9200
 
 ## Polygon Amoy
-- **TokenPolygon**: 0x5CFdE9C777be47FC4a401c918181DD92BA4c81Cc
+- **TokenPolygon**: 0x54595CA0f47f8be2af74B45F24D7f976956F3C05
 
-- **BridgePolygon**: 0xc2766cBFc1Dc3E95058bf09c929E7D6226b10187
+- **BridgePolygon**: 0xF2772a87B76381a730DD2A0E7898737ce2B0dC41
 
-## Testing
-## Smart Contracts
+## 🔧 Infrastructure
+## Docker
 ```bash
-cd contracts
-forge test -vv
+docker-compose up -d postgres prometheus grafana
+docker-compose up -d --build relayer
 ```
-**Results**: 13/13 tests passing ✅
-
-## Go Relay Service
+## Kubernetes
 ```bash
-cd relayer
-go test ./...
+# Staging deployment
+kubectl apply -k k8s/staging/
+
+# Production deployment  
+kubectl apply -k k8s/production/
 ```
-## Quick Start
-## Prerequisites
-- Go 1.21+
+## Monitoring
+- **Prometheus**: Metrics collection on port 9090
 
-- PostgreSQL 14+
+- **Grafana**: Dashboards on port 3000 (admin/admin)
 
-- Foundry
+- **Health Checks**: /health endpoint on port 8080
 
-- Docker
+## 📈 Development Progress
+## ✅ Phase 1: Analytics & Planning
+System architecture and C4 models
 
-## Running the Relay Service
-```bash
-# Development environment
-APP_ENV=dev go run cmd/relayer/main.go
+Functional and non-functional requirements
 
-# Staging environment (default)
-go run cmd/relayer/main.go
+User stories and use cases
 
-# With environment variables
-export ETH_PRIVATE_KEY="0x..."
-export POLYGON_PRIVATE_KEY="0x..."
-APP_ENV=staging go run cmd/relayer/main.go
-```
-## Environment Configuration
-The system supports multiple environments:
+API specification (OpenAPI 3.0)
 
-- dev - Local development with Anvil
+## ✅ Phase 2: Smart Contracts
+Bridge contracts for both networks
 
-- staging - Test networks (Sepolia/Amoy)
+ERC20 token implementations
 
-- production - Mainnet deployment
+Comprehensive test suite (13/13 tests passing)
 
-## 🔜 Phase 4: Infrastructure & Testing (NEXT)
-- Docker containerization
+Security features and optimizations
 
-- Kubernetes deployment
+## ✅ Phase 3: Go Relay Service
+Ethereum event listener with WebSocket
 
-- Integration testing
+Polygon transaction sender with EIP-1559
 
-- E2E testing pipeline
+EIP-712 cryptographic signatures
 
-- Monitoring and alerting
+PostgreSQL idempotency guarantees
 
-## 📈 Project Statistics
+Configuration management system
+
+## 🚧 Phase 4: Infrastructure & Testing
+Docker containerization ✅
+
+Kubernetes deployment manifests ✅
+
+Prometheus/Grafana monitoring ✅
+
+CI/CD pipeline with GitHub Actions ✅
+
+Integration testing (In Progress)
+
+## 🔄 CI/CD Pipeline
+## Continuous Integration
+- Automated testing on every commit
+
+- Smart contract compilation and verification
+
+- Go module validation and building
+
+## Continuous Deployment
+- Automated deployment to testnets
+
+- Multi-environment support (staging/production)
+
+- Secure secret management
+
+- Contract verification on block explorers
+
+## 📊 Project Statistics
 - 29 Tasks defined and tracked
 
-- 19 Tasks completed (65%)
+- 24 Tasks completed (83%)
 
-- 3 Phases fully implemented
+- 4 Phases implemented
 
-- 4 Contracts deployed to testnets
+- 8 Contracts deployed across networks
 
 - 100% Test Coverage for critical paths
 
-## 🤝 Contributing
+#🤝 Contributing
 1. Fork the repository
 
 2. Create a feature branch
