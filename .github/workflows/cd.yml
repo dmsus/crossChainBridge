@@ -21,13 +21,15 @@ jobs:
     - name: Deploy to Ethereum Sepolia
       run: |
         cd contracts
-        PRIVATE_KEY=${{ secrets.STAGING_ETH_PRIVATE_KEY }} forge script script/DeployEthereum.s.sol:DeployEthereum --rpc-url ${{ secrets.SEPOLIA_RPC_URL }} --broadcast --verify -vvvv
+        export PRIVATE_KEY=${{ secrets.STAGING_ETH_PRIVATE_KEY }}
+        forge script script/DeployEthereum.s.sol:DeployEthereum --rpc-url ${{ secrets.SEPOLIA_RPC_URL }} --broadcast --verify -vvvv
       env:
         ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
 
     - name: Deploy to Polygon Amoy
       run: |
         cd contracts
-        PRIVATE_KEY=${{ secrets.STAGING_POLYGON_PRIVATE_KEY }} forge script script/DeployPolygon.s.sol:DeployPolygon --rpc-url ${{ secrets.AMOY_RPC_URL }} --broadcast --verify -vvvv
+        export PRIVATE_KEY=${{ secrets.STAGING_POLYGON_PRIVATE_KEY }}
+        forge script script/DeployPolygon.s.sol:DeployPolygon --rpc-url ${{ secrets.AMOY_RPC_URL }} --broadcast --verify -vvvv
       env:
         POLYGONSCAN_API_KEY: ${{ secrets.POLYGONSCAN_API_KEY }}
