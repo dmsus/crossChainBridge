@@ -8,8 +8,6 @@
 **Phase 3 Completed** ✅ - Go relay service with idempotency finished  
 **Phase 4 Starting** 🔜 - Infrastructure and testing
 
-## 🏆 Career Goal
-Transition from System Analyst to **Blockchain Backend Developer** targeting **$5k+ positions**
 
 ## 🛠 Technology Stack
 - **Smart Contracts**: Solidity, Foundry, OpenZeppelin
