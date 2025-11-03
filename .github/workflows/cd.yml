@@ -21,8 +21,9 @@ jobs:
     - name: Check Wallet Balances
       run: |
         echo "🔍 Checking wallet balances..."
-        cast balance 0x29486B1429030420f00b9202dae6b76bd1b753c4 --rpc-url ${{ secrets.SEPOLIA_RPC_URL }} || echo "⚠️  Balance check failed - continuing deployment"
-        cast balance 0x29486B1429030420f00b9202dae6b76bd1b753c4 --rpc-url ${{ secrets.AMOY_RPC_URL }} || echo "⚠️  Balance check failed - continuing deployment"
+        # Разделяем команды чтобы избежать синтаксических ошибок
+        cast balance 0x29486B1429030420f00b9202dae6b76bd1b753c4 --rpc-url ${{ secrets.SEPOLIA_RPC_URL }}
+        cast balance 0x29486B1429030420f00b9202dae6b76bd1b753c4 --rpc-url ${{ secrets.AMOY_RPC_URL }}
 
     - name: Deploy Contracts
       run: ./scripts/deploy-contracts.sh "${{ secrets.STAGING_ETH_PRIVATE_KEY }}" "${{ secrets.SEPOLIA_RPC_URL }}" "${{ secrets.STAGING_POLYGON_PRIVATE_KEY }}" "${{ secrets.AMOY_RPC_URL }}"
