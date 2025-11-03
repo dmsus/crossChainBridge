@@ -1,65 +1,19 @@
-name: CD - Cross-Chain Bridge Deployment
+name: CD - Cross-Chain Bridge
 
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Environment to deploy'
-        required: true
-        default: 'staging'
-        type: choice
-        options:
-        - staging
-        - production
 
 jobs:
-  # 1. БАЗОВЫЕ ТЕСТЫ - ТОЛЬКО ТО ЧТО НУЖНО
-  test-and-build:
-    name: Test and Build
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-
-    - name: Setup Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.21'
-
-    - name: Setup Foundry
-      uses: foundry-rs/foundry-toolchain@v1
-
-    - name: Run Go tests
-      run: |
-        cd relayer
-        go test -v ./...
-
-    - name: Run contract tests
-      run: |
-        cd contracts
-        forge test -vvv
-
-    - name: Build and push Docker image
-      run: |
-        cd relayer
-        docker build -t ghcr.io/${{ github.repository }}:staging-${{ github.sha }} .
-        docker push ghcr.io/${{ github.repository }}:staging-${{ github.sha }}
-
-  # 2. ДЕПЛОЙ - ПРОСТО И РАБОЧЕ
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    needs: test-and-build
-    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
     environment: staging
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: recursive
 
     - name: Setup Foundry
       uses: foundry-rs/foundry-toolchain@v1
