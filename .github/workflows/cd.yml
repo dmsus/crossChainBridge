@@ -21,29 +21,18 @@ jobs:
     - name: Check Wallet Balances
       run: |
         echo "🔍 Checking wallet balances..."
-        echo "Ethereum Sepolia Balance:"
         cast balance 0x29486B1429030420f00b9202dae6b76bd1b753c4 --rpc-url ${{ secrets.SEPOLIA_RPC_URL }}
-        echo "Polygon Amoy Balance:"
         cast balance 0x29486B1429030420f00b9202dae6b76bd1b753c4 --rpc-url ${{ secrets.AMOY_RPC_URL }}
 
     - name: Deploy to Ethereum Sepolia
       working-directory: ./contracts
       run: PRIVATE_KEY=${{ secrets.STAGING_ETH_PRIVATE_KEY }} forge script script/DeployEthereum.s.sol:DeployEthereum --rpc-url ${{ secrets.SEPOLIA_RPC_URL }} --broadcast --verify -vvvv
-      env:
-        ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
 
     - name: Deploy to Polygon Amoy
       working-directory: ./contracts
       run: PRIVATE_KEY=${{ secrets.STAGING_POLYGON_PRIVATE_KEY }} forge script script/DeployPolygon.s.sol:DeployPolygon --rpc-url ${{ secrets.AMOY_RPC_URL }} --broadcast --verify -vvvv
-      env:
-        POLYGONSCAN_API_KEY: ${{ secrets.POLYGONSCAN_API_KEY }}
 
     - name: Display Deployment Results
       run: |
         echo "🎉 DEPLOYMENT COMPLETED SUCCESSFULLY!"
-        echo "======================================"
-        echo "Contracts deployed and verified:"
-        echo "- Ethereum Sepolia: Bridge & Token"
-        echo "- Polygon Amoy: Bridge & Token"
-        echo ""
-        echo "✅ Cross-chain bridge is LIVE!"
+        echo "Cross-chain bridge is LIVE and OPERATIONAL!"
