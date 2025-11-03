@@ -11,19 +11,31 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o relayer-bin ./cmd/relayer
 # Runtime stage  
 FROM alpine:latest
 
-RUN apk --no-cache add ca-certificates
-WORKDIR /root/
+# Install required packages
+RUN apk --no-cache add \
+    ca-certificates \
+    postgresql-client \
+    wget
+
+# Install golang-migrate
+RUN wget https://github.com/golang-migrate/migrate/releases/download/v4.16.2/migrate.linux-amd64.tar.gz && \
+    tar -xzf migrate.linux-amd64.tar.gz && \
+    mv migrate /usr/local/bin/ && \
+    rm migrate.linux-amd64.tar.gz
+
+WORKDIR /app
 
 COPY --from=builder /app/relayer-bin .
 COPY --from=builder /app/.env.staging.yaml .
-# Копируем ABI файлы из контекста сборки
+COPY --from=builder /app/migrations ./migrations
 COPY --from=builder /app/contracts/out ./contracts/out
+COPY --from=builder /app/entrypoint.sh .
 
-RUN chmod +x ./relayer-bin
+RUN chmod +x ./relayer-bin ./entrypoint.sh
 
 EXPOSE 8080
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
-CMD ["./relayer-bin", "--env", "staging"]
+ENTRYPOINT ["./entrypoint.sh"]
