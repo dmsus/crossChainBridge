@@ -21,9 +21,8 @@ jobs:
     - name: Deploy to Ethereum Sepolia
       run: |
         cd contracts
-        forge script script/DeployEthereum.s.sol:DeployEthereum \
+        PRIVATE_KEY=${{ secrets.STAGING_ETH_PRIVATE_KEY }} forge script script/DeployEthereum.s.sol:DeployEthereum \
           --rpc-url ${{ secrets.SEPOLIA_RPC_URL }} \
-          --private-key ${{ secrets.STAGING_ETH_PRIVATE_KEY }} \
           --broadcast \
           --verify \
           -vvvv
@@ -33,9 +32,8 @@ jobs:
     - name: Deploy to Polygon Amoy
       run: |
         cd contracts
-        forge script script/DeployPolygon.s.sol:DeployPolygon \
+        PRIVATE_KEY=${{ secrets.STAGING_POLYGON_PRIVATE_KEY }} forge script script/DeployPolygon.s.sol:DeployPolygon \
           --rpc-url ${{ secrets.AMOY_RPC_URL }} \
-          --private-key ${{ secrets.STAGING_POLYGON_PRIVATE_KEY }} \
           --broadcast \
           --verify \
           -vvvv
