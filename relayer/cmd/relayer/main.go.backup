@@ -9,7 +9,6 @@ import (
 
     "github.com/dmsus/crossChainBridge/relayer/internal/config"
     "github.com/dmsus/crossChainBridge/relayer/internal/eventlistener"
-    "github.com/dmsus/crossChainBridge/relayer/internal/monitoring"
     "github.com/dmsus/crossChainBridge/relayer/internal/processor"
     "github.com/dmsus/crossChainBridge/relayer/internal/sender"
     "github.com/dmsus/crossChainBridge/relayer/pkg/database"
@@ -36,9 +35,6 @@ func main() {
 
     // Запускаем health server
     go startHealthServer(ctx, "8080")
-
-    // Запускаем сервер метрик Prometheus
-    go monitoring.StartMetricsServer("9090")
 
     // Создаем подключение к БД
     dbRepo, err := database.SetupDatabase(database.Config{

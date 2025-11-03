@@ -1,0 +1,20 @@
+groups:
+  - name: cross-chain-bridge-alerts
+    rules:
+      - alert: BridgeServiceDown
+        expr: up{job="cross-chain-bridge"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Bridge service is down"
+          description: "Cross-chain bridge service has been down for more than 1 minute."
+
+      - alert: HighErrorRate
+        expr: rate(bridge_errors_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is above 10% for the last 5 minutes."

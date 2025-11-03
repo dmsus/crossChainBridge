@@ -33,7 +33,8 @@ COPY --from=builder /app/entrypoint.sh .
 
 RUN chmod +x ./relayer-bin ./entrypoint.sh
 
-EXPOSE 8080
+# ОБНОВЛЕНО: Добавляем порт для метрик Prometheus
+EXPOSE 8080 9090
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
