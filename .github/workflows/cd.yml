@@ -1,0 +1,203 @@
+name: CD - Cross-Chain Bridge Deployment
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # Manual trigger
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - production
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # 1. ТЕСТИРОВАНИЕ И БИЛД
+  test-and-build:
+    name: Test and Build
+    runs-on: ubuntu-latest
+    outputs:
+      docker-tag: ${{ steps.meta.outputs.tags }}
+      should-deploy: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+        cache-dependency-path: relayer/go.sum
+
+    - name: Setup Foundry
+      uses: foundry-rs/foundry-toolchain@v1
+      with:
+        version: nightly
+
+    - name: Run Go tests
+      run: |
+        cd relayer
+        go test -v ./... -race
+
+    - name: Run contract tests
+      run: |
+        cd contracts
+        forge test -vvv
+
+    - name: Build Go binary
+      run: |
+        cd relayer
+        go build -v -o relayer-bin ./cmd/relayer
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha,prefix={{branch}}-
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./relayer/Dockerfile
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  # 2. SECURITY SCANNING
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: test-and-build
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Run Go security scan
+      uses: securego/gosec@master
+      with:
+        args: -exclude=G104 ./...
+
+    - name: Run Solidity security scan
+      run: |
+        cd contracts
+        npm install -g solhint
+        solhint 'src/**/*.sol'
+
+    - name: Run Slither analysis
+      run: |
+        cd contracts
+        pip3 install slither-analyzer
+        slither . --exclude-dependencies
+
+    - name: Dependency vulnerability scan
+      uses: actions/dependency-review-action@v3
+
+  # 3. CODE QUALITY
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Run Go linter
+      uses: golangci/golangci-lint-action@v3
+      with:
+        working-directory: relayer
+
+    - name: Run Markdown lint
+      uses: actionshub/markdownlint@v2
+
+    - name: Check YAML syntax
+      uses: actionshub/yamllint@v2
+
+  # 4. STAGING DEPLOYMENT
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [test-and-build, security-scan, code-quality]
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    environment: staging
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Foundry
+      uses: foundry-rs/foundry-toolchain@v1
+
+    - name: Deploy to Ethereum Sepolia
+      run: |
+        cd contracts
+        forge script script/DeployEthereum.s.sol:DeployEthereum \
+          --rpc-url ${{ secrets.SEPOLIA_RPC_URL }} \
+          --private-key ${{ secrets.STAGING_ETH_PRIVATE_KEY }} \
+          --broadcast \
+          --verify \
+          -vvvv
+      env:
+        ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+
+    - name: Deploy to Polygon Amoy
+      run: |
+        cd contracts
+        forge script script/DeployPolygon.s.sol:DeployPolygon \
+          --rpc-url ${{ secrets.AMOY_RPC_URL }} \
+          --private-key ${{ secrets.STAGING_POLYGON_PRIVATE_KEY }} \
+          --broadcast \
+          --verify \
+          -vvvv
+      env:
+        POLYGONSCAN_API_KEY: ${{ secrets.POLYGONSCAN_API_KEY }}
+
+    - name: Update deployment documentation
+      run: |
+        echo "## Latest Staging Deployment" >> $GITHUB_STEP_SUMMARY
+        echo "- **Date**: $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Docker Image**: ${{ needs.test-and-build.outputs.docker-tag }}" >> $GITHUB_STEP_SUMMARY
+
+  # 5. PRODUCTION DEPLOYMENT (MANUAL)
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: test-and-build
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'
+    environment: production
+    
+    steps:
+    - name: Production deployment placeholder
+      run: |
+        echo "🚀 Production deployment would happen here"
+        echo "This would deploy to Ethereum Mainnet and Polygon Mainnet"
+        echo "Requires manual approval and mainnet private keys"
