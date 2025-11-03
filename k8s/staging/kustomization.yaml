@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: cross-chain-bridge-staging
+
+resources:
+  - ../base
+
+patchesStrategicMerge:
+  - relayer-patch.yaml
+  - postgres-patch.yaml
+
+commonLabels:
+  environment: staging
+
+images:
+  - name: crosschainbridge-relayer
+    newName: your-registry/crosschainbridge-relayer
+    newTag: staging

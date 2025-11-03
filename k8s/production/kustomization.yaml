@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: cross-chain-bridge-production
+
+resources:
+  - ../base
+
+patchesStrategicMerge:
+  - relayer-patch.yaml
+
+commonLabels:
+  environment: production
+
+images:
+  - name: crosschainbridge-relayer
+    newName: your-registry/crosschainbridge-relayer
+    newTag: v1.0.0

@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: relayer
+  namespace: cross-chain-bridge
+  labels:
+    app: relayer
+    component: cross-chain-bridge
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: relayer
+  template:
+    metadata:
+      labels:
+        app: relayer
+        component: cross-chain-bridge
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      # Запуск от non-root пользователя для безопасности
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+      - name: relayer
+        image: crosschainbridge-relayer:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: health
+        - containerPort: 9090
+          name: metrics
+        env:
+        - name: APP_ENV
+          value: "production"
+        # Конфигурация из ConfigMap
+        - name: DATABASE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: relayer-config
+              key: DATABASE_HOST
+        - name: DATABASE_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: relayer-config
+              key: DATABASE_PORT
+        - name: DATABASE_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: relayer-config
+              key: DATABASE_NAME
+        - name: DATABASE_SSLMODE
+          valueFrom:
+            configMapKeyRef:
+              name: relayer-config
+              key: DATABASE_SSLMODE
+        # Секреты из Secret
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: relayer-secrets
+              key: database-password
+        - name: ETHEREUM_PRIVATE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: relayer-secrets
+              key: ethereum-private-key
+        - name: POLYGON_PRIVATE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: relayer-secrets
+              key: polygon-private-key
+        - name: INFURA_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: relayer-secrets
+              key: infura-api-key
+        # Resource limits
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 1
+        # Security context для контейнера
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL

@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: cross-chain-bridge
+data:
+  POSTGRES_DB: "bridge_production"
+  POSTGRES_USER: "bridge_user"
+  POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"

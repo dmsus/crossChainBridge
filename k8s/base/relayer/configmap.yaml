@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: relayer-config
+  namespace: cross-chain-bridge
+data:
+  # Database configuration
+  DATABASE_HOST: "postgres-service"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "bridge_production"
+  DATABASE_SSLMODE: "disable"
+  
+  # Ethereum configuration
+  ETHEREUM_RPC_URL: "https://sepolia.infura.io/v3/your-infura-key"
+  ETHEREUM_WS_URL: "wss://sepolia.infura.io/ws/v3/your-infura-key"
+  ETHEREUM_BRIDGE_ADDR: "0xc2766cBFc1Dc3E95058bf09c929E7D6226b10187"
+  
+  # Polygon configuration  
+  POLYGON_RPC_URL: "https://polygon-amoy.infura.io/v3/your-infura-key"
+  POLYGON_BRIDGE_ADDR: "0xc2766cBFc1Dc3E95058bf09c929E7D6226b10187"
+  
+  # Processor configuration
+  PROCESSOR_MAX_RETRIES: "3"
+  PROCESSOR_RETRY_DELAY: "5s"
+  
+  # Monitoring configuration
+  MONITORING_LOG_LEVEL: "info"
+  MONITORING_LOG_FORMAT: "json"
+  MONITORING_METRICS_PORT: "9090"
+  
+  # API configuration
+  API_PORT: "8080"

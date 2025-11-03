@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: relayer
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - name: relayer
+        env:
+        - name: APP_ENV
+          value: "staging"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: relayer-hpa
+spec:
+  minReplicas: 1
+  maxReplicas: 3
