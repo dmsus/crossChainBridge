@@ -218,11 +218,11 @@ func (c *Config) Validate() error {
     
     // СТРОГАЯ проверка формата приватных ключей
     if !isValidPrivateKey(c.Ethereum.PrivateKey) {
-        return fmt.Errorf("invalid ethereum private key format: must be 64 hex characters, got %d", len(c.Ethereum.PrivateKey))
+        return fmt.Errorf("invalid ethereum private key format: must be 64 hex characters, got %d", len(strings.TrimPrefix(c.Ethereum.PrivateKey, "0x")))
     }
     
     if !isValidPrivateKey(c.Polygon.PrivateKey) {
-        return fmt.Errorf("invalid polygon private key format: must be 64 hex characters, got %d", len(c.Polygon.PrivateKey))
+        return fmt.Errorf("invalid polygon private key format: must be 64 hex characters, got %d", len(strings.TrimPrefix(c.Polygon.PrivateKey, "0x")))
     }
     
     return nil

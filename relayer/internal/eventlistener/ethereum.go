@@ -59,7 +59,7 @@ func NewEthereumListener(cfg Config) (*EthereumListener, error) {
     contract := common.HexToAddress(cfg.ContractAddr)
 
     // ABI файл теперь в текущей папке
-    abiPath := "../contracts/out/BridgeEthereum.sol/BridgeEthereum.json"
+    abiPath := "contracts/out/BridgeEthereum.sol/BridgeEthereum.json"
     abiData, err := os.ReadFile(abiPath)
     if err != nil {
         httpClient.Close()

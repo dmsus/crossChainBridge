@@ -1,0 +1,32 @@
+services:
+  postgres:
+    image: postgres:14-alpine
+    environment:
+      POSTGRES_DB: bridge_local
+      POSTGRES_USER: bridge_user
+      POSTGRES_PASSWORD: bridge_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bridge_user -d bridge_local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  relayer:
+    build:
+      context: ./relayer
+      dockerfile: Dockerfile
+    environment:
+      - POLYGON_PRIVATE_KEY=0x95f1623c0508df464789e769da9ef7e16ae6d323d2a3e67ad8c1b4b94ada5f8c
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
