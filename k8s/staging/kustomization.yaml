@@ -6,12 +6,19 @@ namespace: cross-chain-bridge-staging
 resources:
   - ../base
 
-patchesStrategicMerge:
-  - relayer-patch.yaml
-  - postgres-patch.yaml
+patches:
+  - path: relayer-patch.yaml
+    target:
+      kind: Deployment
+      name: relayer
+  - path: hpa-patch.yaml
+    target:
+      kind: HorizontalPodAutoscaler  
+      name: relayer-hpa
 
-commonLabels:
-  environment: staging
+labels:
+  - pairs:
+      environment: staging
 
 images:
   - name: crosschainbridge-relayer

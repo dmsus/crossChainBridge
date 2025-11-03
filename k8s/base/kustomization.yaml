@@ -25,9 +25,10 @@ resources:
   - monitoring/prometheus-configmap.yaml
   - monitoring/rbac.yaml
 
-commonLabels:
-  app: cross-chain-bridge
-  version: v1.0.0
+labels:
+  - pairs:
+      app: cross-chain-bridge
+      version: v1.0.0
 
 commonAnnotations:
   description: "Cross-Chain Bridge Ethereum ↔ Polygon"

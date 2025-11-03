@@ -6,11 +6,19 @@ namespace: cross-chain-bridge-production
 resources:
   - ../base
 
-patchesStrategicMerge:
-  - relayer-patch.yaml
+patches:
+  - path: relayer-patch.yaml
+    target:
+      kind: Deployment
+      name: relayer
+  - path: hpa-patch.yaml
+    target:
+      kind: HorizontalPodAutoscaler
+      name: relayer-hpa
 
-commonLabels:
-  environment: production
+labels:
+  - pairs:
+      environment: production
 
 images:
   - name: crosschainbridge-relayer
