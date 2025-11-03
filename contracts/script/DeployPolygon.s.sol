@@ -7,7 +7,9 @@ import "../src/TokenPolygon.sol";
 
 contract DeployPolygon is Script {
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        // ФИКС: Используем envString вместо envUint
+        string memory privateKeyStr = vm.envString("PRIVATE_KEY");
+        uint256 deployerPrivateKey = vm.parseUint(privateKeyStr);
         address relayer = 0x70997970C51812dc3A010C7d01b50e0d17dc79C8; // test address
         
         vm.startBroadcast(deployerPrivateKey);

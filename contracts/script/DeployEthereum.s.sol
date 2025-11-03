@@ -7,7 +7,10 @@ import "../src/TokenEthereum.sol";
 
 contract DeployEthereum is Script {
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        // ФИКС: Используем envString вместо envUint
+        string memory privateKeyStr = vm.envString("PRIVATE_KEY");
+        uint256 deployerPrivateKey = vm.parseUint(privateKeyStr);
+        
         vm.startBroadcast(deployerPrivateKey);
 
         // Deploy token
