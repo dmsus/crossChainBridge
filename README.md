@@ -204,7 +204,7 @@ Integration testing (In Progress)
 
 - 100% Test Coverage for critical paths
 
-#🤝 Contributing
+## 🤝 Contributing
 1. Fork the repository
 
 2. Create a feature branch

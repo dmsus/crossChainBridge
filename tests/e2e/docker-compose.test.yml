@@ -1,0 +1,36 @@
+version: '3.8'
+services:
+  # Локальные блокчейн ноды
+  anvil-ethereum:
+    image: foundry:latest
+    command: anvil --port 8545 --chain-id 31337 --mnemonic "test test test test test test test test test test test junk"
+    ports:
+      - "8545:8545"
+  
+  anvil-polygon:
+    image: foundry:latest  
+    command: anvil --port 8546 --chain-id 31338 --mnemonic "test test test test test test test test test test test junk"
+    ports:
+      - "8546:8546"
+  
+  # Тестовая база данных
+  postgres-test:
+    image: postgres:14-alpine
+    environment:
+      POSTGRES_DB: bridge_test
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+    ports:
+      - "5433:5432"
+  
+  # Go релейер для тестов
+  relayer-test:
+    build:
+      context: ../..
+      dockerfile: relayer/Dockerfile
+    environment:
+      APP_ENV: test
+    depends_on:
+      - anvil-ethereum
+      - anvil-polygon
+      - postgres-test
