@@ -6,13 +6,16 @@ import (
     "os"
     "os/signal"
     "syscall"
+    "time"
 
     "github.com/dmsus/crossChainBridge/relayer/internal/config"
     "github.com/dmsus/crossChainBridge/relayer/internal/eventlistener"
     "github.com/dmsus/crossChainBridge/relayer/internal/monitoring"
     "github.com/dmsus/crossChainBridge/relayer/internal/processor"
+    "github.com/dmsus/crossChainBridge/relayer/internal/security"
     "github.com/dmsus/crossChainBridge/relayer/internal/sender"
     "github.com/dmsus/crossChainBridge/relayer/pkg/database"
+    "github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -28,7 +31,7 @@ func main() {
     }
 
     // Настраиваем логирование
-    setupLogging(cfg)
+    logger := setupLogging(cfg)
 
     // Создаем контекст для graceful shutdown
     ctx, cancel := context.WithCancel(context.Background())
@@ -59,6 +62,13 @@ func main() {
         log.Fatalf("❌ Database health check failed: %v", err)
     }
     log.Println("✅ Database health check passed")
+
+    // ИНИЦИАЛИЗИРУЕМ SECURITY КОМПОНЕНТЫ
+    securityComponents, err := setupSecurity(cfg, dbRepo, logger)
+    if err != nil {
+        log.Fatalf("❌ Failed to setup security components: %v", err)
+    }
+    log.Println("✅ Security components initialized")
 
     // Создаем Polygon sender
     polygonSender, err := sender.NewPolygonSender(sender.Config{
@@ -102,15 +112,20 @@ func main() {
     }
     defer ethListener.Stop()
 
-    // Запускаем обработку событий с идемпотентностью
-    go processEventsWithIdempotency(ctx, ethListener, bridgeProcessor)
+    // Запускаем обработку событий с идемпотентностью И security
+    go processEventsWithSecurity(ctx, ethListener, bridgeProcessor, securityComponents)
+
+    // Запускаем API с security middleware (если API включено)
+    if cfg.API.Enabled {
+        go startAPIServerWithSecurity(cfg, securityComponents, logger)
+    }
 
     // Запускаем listener
     if err := ethListener.Start(ctx); err != nil {
         log.Fatalf("❌ Failed to start Ethereum listener: %v", err)
     }
 
-    log.Printf("✅ Relayer with idempotency started successfully in %s environment. Waiting for events...", env)
+    log.Printf("✅ Relayer with security features started successfully in %s environment. Waiting for events...", env)
 
     // Ожидаем сигнал завершения
     sigChan := make(chan os.Signal, 1)
@@ -121,6 +136,42 @@ func main() {
     cancel()
 }
 
+// SecurityComponents содержит все security компоненты
+type SecurityComponents struct {
+    RateLimiter     *security.RateLimiter
+    ReplayProtector *security.ReplayProtector
+    Middleware      *security.SecurityMiddleware
+}
+
+// setupSecurity инициализирует все security компоненты
+func setupSecurity(cfg *config.Config, dbRepo *database.Repository, logger *logrus.Logger) (*SecurityComponents, error) {
+    // Rate Limiter
+    rateLimiter := security.NewRateLimiter(security.RateLimitConfig{
+        DefaultRequestsPerMinute: cfg.Security.RequestsPerMinute,
+        DefaultBurstSize:         cfg.Security.BurstSize,
+        CleanupInterval:          1 * time.Minute,
+    }, logger)
+
+    // Replay Protector
+    replayProtector := security.NewReplayProtector(dbRepo, logger)
+
+    // Security Middleware
+    securityConfig := security.SecurityConfig{
+        EnableRateLimiting: cfg.Security.EnableRateLimiting,
+        RequestsPerMinute:  cfg.Security.RequestsPerMinute,
+        BurstSize:         cfg.Security.BurstSize,
+        TimestampWindow:   cfg.Security.TimestampWindow,
+        BlockedIPs:        cfg.Security.BlockedIPs,
+    }
+    middleware := security.NewSecurityMiddleware(rateLimiter, replayProtector, securityConfig, logger)
+
+    return &SecurityComponents{
+        RateLimiter:     rateLimiter,
+        ReplayProtector: replayProtector,
+        Middleware:      middleware,
+    }, nil
+}
+
 func getEnvironment() string {
     if env := os.Getenv("APP_ENV"); env != "" {
         return env
@@ -128,29 +179,58 @@ func getEnvironment() string {
     return "staging" // default
 }
 
-func setupLogging(cfg *config.Config) {
-    logLevel := cfg.GetLogLevel()
-    log.Printf("🔧 Log level: %s", logLevel)
-    // Здесь можно добавить настройку структурированного логирования
-    // в зависимости от cfg.Monitoring.LogFormat
+func setupLogging(cfg *config.Config) *logrus.Logger {
+    logger := logrus.New()
+    
+    // Устанавливаем уровень логирования
+    level, err := logrus.ParseLevel(cfg.GetLogLevel())
+    if err != nil {
+        level = logrus.InfoLevel
+    }
+    logger.SetLevel(level)
+
+    // Устанавливаем формат
+    if cfg.Monitoring.LogFormat == "json" {
+        logger.SetFormatter(&logrus.JSONFormatter{})
+    } else {
+        logger.SetFormatter(&logrus.TextFormatter{
+            FullTimestamp: true,
+        })
+    }
+
+    log.Printf("🔧 Log level: %s, format: %s", cfg.GetLogLevel(), cfg.Monitoring.LogFormat)
+    return logger
 }
 
-func processEventsWithIdempotency(ctx context.Context, listener *eventlistener.EthereumListener, processor *processor.BridgeProcessor) {
+func processEventsWithSecurity(ctx context.Context, listener *eventlistener.EthereumListener, processor *processor.BridgeProcessor, security *SecurityComponents) {
     for {
         select {
         case event := <-listener.Events():
             log.Printf("📦 Received event: user=%s, amount=%s, nonce=%s, targetChain=%s",
                 event.User.Hex(), event.Amount.String(), event.Nonce.String(), event.TargetChainID.String())
             
+            // ПРОВЕРЯЕМ REPLAY PROTECTION
+            if security.ReplayProtector != nil {
+                valid, err := security.ReplayProtector.ValidateNonceSequence(ctx, event.User.Hex(), event.TargetChainID.Int64(), event.Nonce.Int64())
+                if err != nil {
+                    log.Printf("❌ Replay protection check failed: %v", err)
+                    continue
+                }
+                if !valid {
+                    log.Printf("⚠️ Rejected duplicate or out-of-order nonce: %s", event.Nonce.String())
+                    continue
+                }
+            }
+            
             // Проверяем, что это перевод в Polygon (chainID 80002)
             if event.TargetChainID.Uint64() == 80002 {
-                log.Println("🎯 This event is for Polygon network, processing with idempotency...")
+                log.Println("🎯 This event is for Polygon network, processing with security...")
                 
                 // Обрабатываем событие с гарантией идемпотентности
                 if err := processor.ProcessEvent(ctx, &event); err != nil {
                     log.Printf("❌ Failed to process event: %v", err)
                 } else {
-                    log.Printf("✅ Event processed successfully with idempotency")
+                    log.Printf("✅ Event processed successfully with security")
                 }
             } else {
                 log.Printf("⚠️ Skipping event for unknown chain: %s", event.TargetChainID.String())
@@ -161,4 +241,10 @@ func processEventsWithIdempotency(ctx context.Context, listener *eventlistener.E
             return
         }
     }
+}
+
+func startAPIServerWithSecurity(cfg *config.Config, security *SecurityComponents, logger *logrus.Logger) {
+    // Здесь будет реализация API сервера с security middleware
+    log.Printf("🔒 API server with security features starting on port %d", cfg.API.Port)
+    // Реализация API будет добавлена позже
 }

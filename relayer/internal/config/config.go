@@ -20,6 +20,7 @@ type Config struct {
     Processor   ProcessorConfig `mapstructure:"processor"`
     Monitoring  MonitoringConfig `mapstructure:"monitoring"`
     API         APIConfig      `mapstructure:"api"`
+    Security    SecurityConfig `mapstructure:"security"`
 }
 
 // DatabaseConfig конфигурация PostgreSQL
@@ -85,6 +86,15 @@ type APIConfig struct {
     Port        int    `mapstructure:"port"`
     SwaggerEnabled bool `mapstructure:"swagger_enabled"`
     RateLimit   int    `mapstructure:"rate_limit"`
+}
+
+// SecurityConfig содержит настройки безопасности
+type SecurityConfig struct {
+    EnableRateLimiting   bool          `mapstructure:"enable_rate_limiting"`
+    RequestsPerMinute    int           `mapstructure:"requests_per_minute"`
+    BurstSize           int           `mapstructure:"burst_size"`
+    TimestampWindow     time.Duration `mapstructure:"timestamp_window"`
+    BlockedIPs          []string      `mapstructure:"blocked_ips"`
 }
 
 // Load загружает конфигурацию для указанного окружения
@@ -180,6 +190,17 @@ func (c *Config) setDefaults() {
     }
     if c.API.RateLimit == 0 {
         c.API.RateLimit = 100
+    }
+    
+    // Security defaults
+    if c.Security.RequestsPerMinute == 0 {
+        c.Security.RequestsPerMinute = 60
+    }
+    if c.Security.BurstSize == 0 {
+        c.Security.BurstSize = 10
+    }
+    if c.Security.TimestampWindow == 0 {
+        c.Security.TimestampWindow = 5 * time.Minute
     }
     
     // Сохраняем обратную совместимость

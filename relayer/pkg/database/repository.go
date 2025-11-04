@@ -67,6 +67,11 @@ func NewRepository(db *sql.DB) *Repository {
     return &Repository{db: db}
 }
 
+// DB возвращает underlying database connection
+func (r *Repository) DB() *sql.DB {
+    return r.db
+}
+
 // CheckAndStoreEvent проверяет идемпотентность и сохраняет событие если оно новое
 func (r *Repository) CheckAndStoreEvent(ctx context.Context, eventHash string, blockNumber, logIndex int64, contractAddress string) (bool, error) {
     var exists bool
