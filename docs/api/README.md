@@ -1,150 +1,207 @@
-# Bridge API Documentation
+# 🔌 Cross-Chain Bridge API Documentation
 
-## Overview
-REST API for cross-chain token bridge operations, monitoring, and administration.
+Complete REST API reference for the cross-chain bridge based on OpenAPI 3.0 specification.
 
-## Quick Start
+## 📋 API Overview
 
-### Base URLs
-- **Development**: `http://localhost:8080`
-- **Production**: `https://api.bridge.com`
+| Category | Endpoints | Authentication |
+|----------|-----------|----------------|
+| **Bridge Operations** | Lock tokens, check status, get fees | Public |
+| **Monitoring** | Health, metrics, transactions | Public |
+| **Admin** | Transactions management, emergency controls | API Key Required |
 
-### Authentication
-Currently, the API uses API key authentication. Include your API key in the header:
+## 🔐 Authentication
 
-X-API-Key: your-api-key-here
+### Public Endpoints
+No authentication required for bridge operations and monitoring.
 
-
-## Key Endpoints
-
-### Bridge Operations
-#### 1. Initiate Cross-Chain Transfer
-POST /api/bridge/lock
-Content-Type: application/json
-```json
-{
-"sourceNetwork": "ethereum",
-"targetNetwork": "polygon",
-"amount": "1000000000000000000",
-"targetAddress": "0x742E6F70B07533E0455c2e1A588aBc66a76b2f81"
-}
+### Admin Endpoints
+Require API Key in header:
+```bash
+curl -H "X-API-Key: your-admin-key" http://localhost:8080/api/admin/transactions
 ```
+## 🌐 Base URLs
+- **Development**: http://localhost:8080
 
-#### 2. Check Transaction Status
-GET /api/bridge/status/0x1234567890abcdef...
+- **Production**: https://api.bridge.com
 
-#### 3. Get Bridge Fees
-GET /api/bridge/fees
-
-#### 4. Get Transfer Limits
-GET /api/bridge/limits
-
-#### 5. Get Supported Tokens
-GET /api/bridge/tokens
-
-#### 6. Estimate Transfer
-GET /api/bridge/estimate/1000000000000000000?sourceNetwork=ethereum&targetNetwork=polygon
-
-### Monitoring
-#### 7. Service Health
-GET /health
-
-#### 8. System Status
-GET /api/system/status
-
-#### 9. List Transactions
-GET /api/transactions?page=1&limit=50
-
-#### 10. Prometheus Metrics
-GET /metrics
-
-### Admin Operations
-#### 11. List Transactions with Filters
-GET /api/admin/transactions?status=failed&network=ethereum
-
-#### 12. Retry Failed Transaction
-POST /api/admin/transactions/{id}/retry
-
-#### 13. Emergency Pause Bridge
-POST /api/admin/pause
-Content-Type: application/json
-```json
-{
-"reason": "Emergency maintenance"
-}
+## 🚀 Quick Start Examples
+## 1. Check System Health
+```bash
+curl http://localhost:8080/health
 ```
+## Response:
 
-## OpenAPI Specification
-The full API specification is available in [openapi.yaml](./openapi.yaml).
-
-You can view interactive documentation using:
-- [Swagger UI](https://swagger.io/tools/swagger-ui/)
-- [Redoc](https://redoc.ly/)
-
-## Error Handling
-All errors follow the standard format:
 ```json
 {
-  "error": "ValidationError",
-  "message": "Invalid target address format",
-  "code": 400,
-  "details": {
-    "field": "targetAddress"
+  "status": "healthy",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "components": {
+    "database": "healthy",
+    "ethereumNode": "healthy", 
+    "polygonNode": "healthy",
+    "messageQueue": "healthy"
   }
 }
 ```
-## Rate Limiting
-**Bridge Operations**: 10 requests per minute per IP
+## 2. Lock Tokens (Initiate Transfer)
+```bash
+curl -X POST http://localhost:8080/api/bridge/lock \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sourceNetwork": "ethereum",
+    "targetNetwork": "polygon", 
+    "amount": "1000000000000000000",
+    "targetAddress": "0x29486B1429030420f00b9202dae6b76bd1b753c4"
+  }'
+```
+## Response:
 
-**Monitoring**: 60 requests per minute per IP
-
-**Admin**: 5 requests per minute per API key
-
-**System**: 30 requests per minute per IP
-
-## Response Examples
-### Successful Lock
 ```json
 {
-  "transactionHash": "0x123...",
+  "transactionHash": "0x123...abc",
   "status": "pending",
-  "estimatedCompletionTime": "2023-12-01T10:30:00Z"
+  "estimatedCompletionTime": "2024-01-15T10:35:00Z"
 }
 ```
-### Transaction Status
+## 3. Check Transaction Status
+```bash
+curl http://localhost:8080/api/bridge/status/0x123...abc
+```
+## Response:
+
 ```json
 {
-  "transactionHash": "0x123...",
+  "transactionHash": "0x123...abc",
   "status": "processing",
   "sourceNetwork": "ethereum",
   "targetNetwork": "polygon",
   "amount": "1000000000000000000",
-  "timestamp": "2023-12-01T10:00:00Z",
+  "timestamp": "2024-01-15T10:30:00Z",
   "confirmations": 12,
-  "bridgeFee": "10000000000000000"
+  "bridgeFee": "50000000000000000"
 }
 ```
-### System Status
+## 📊 Bridge Operations
+## POST /api/bridge/lock
+Initiate token lock for cross-chain transfer.
+
+## Request Body:
+
 ```json
 {
-  "overall": "healthy",
-  "components": {
-    "database": {
-      "status": "healthy",
-      "latency": 45,
-      "lastCheck": "2023-12-01T10:29:30Z"
-    },
-    "ethereumNode": {
-      "status": "healthy", 
-      "latency": 120,
-      "lastCheck": "2023-12-01T10:29:25Z"
-    }
+  "sourceNetwork": "ethereum",
+  "targetNetwork": "polygon", 
+  "amount": "1000000000000000000",
+  "targetAddress": "0x29486B1429030420f00b9202dae6b76bd1b753c4",
+  "tokenAddress": "0x5CFdE9C777be47FC4a401c918181DD92BA4c81Cc"
+}
+```
+## GET /api/bridge/status/{txHash}
+Get transaction status by hash.
+
+## GET /api/bridge/fees
+Get current bridge fee structure.
+
+```bash
+curl http://localhost:8080/api/bridge/fees
+```
+## GET /api/bridge/limits
+Get transfer limits.
+
+```bash
+curl http://localhost:8080/api/bridge/limits
+```
+## GET /api/bridge/tokens
+Get supported tokens.
+
+```bash
+curl http://localhost:8080/api/bridge/tokens
+```
+## GET /api/bridge/estimate/{amount}
+Estimate transfer time and fees.
+
+```bash
+curl "http://localhost:8080/api/bridge/estimate/1000000000000000000?sourceNetwork=ethereum&targetNetwork=polygon"
+```
+## 📈 Monitoring Endpoints
+## GET /health
+System health check.
+
+## GET /metrics
+Prometheus metrics (text format).
+
+## GET /api/system/status
+Detailed system component status.
+
+## GET /api/transactions
+List recent transactions with pagination.
+
+```bash
+curl "http://localhost:8080/api/transactions?page=1&limit=50"
+```
+## ⚙️ Admin Endpoints
+## GET /api/admin/transactions
+List transactions with filters (requires API key).
+
+```bash
+curl -H "X-API-Key: admin-key" \
+  "http://localhost:8080/api/admin/transactions?status=failed&network=ethereum&page=1&limit=50"
+```
+## POST /api/admin/transactions/{id}/retry
+Retry failed transaction.
+
+```bash
+curl -X POST -H "X-API-Key: admin-key" \
+  http://localhost:8080/api/admin/transactions/123/retry
+```
+## POST /api/admin/pause
+Emergency pause bridge.
+
+```bash
+curl -X POST -H "X-API-Key: admin-key" \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "emergency maintenance"}' \
+  http://localhost:8080/api/admin/pause
+```
+## 🚨 Error Responses
+All errors follow this format:
+
+```json
+{
+  "error": "VALIDATION_ERROR",
+  "message": "Invalid target address format",
+  "code": 400,
+  "details": {
+    "field": "targetAddress",
+    "constraint": "must be valid Ethereum address"
   }
 }
 ```
-### Testing
-Use the development server for testing:
-```bash
-curl -X GET http://localhost:8080/health
-curl -X GET http://localhost:8080/api/bridge/fees
-```
+## Common HTTP Status Codes:
+
+- 200 - Success
+
+- 400 - Bad Request (invalid parameters)
+
+- 401 - Unauthorized (missing/invalid API key)
+
+- 404 - Not Found
+
+- 429 - Rate Limit Exceeded
+
+- 500 - Internal Server Error
+
+- 503 - Service Unavailable
+
+## 📝 Notes
+- **Amount Format**: Always use smallest unit (wei for ETH)
+
+- **Address Format**: Must be valid Ethereum addresses (0x...)
+
+- **Rate Limits**: 100 requests/minute for public endpoints
+
+- **Idempotency**: Lock operations are idempotent
+
+## 🔗 OpenAPI Specification
+Full API specification available at: /docs/api/openapi.yaml
