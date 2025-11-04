@@ -117,7 +117,7 @@ func main() {
 
     // Запускаем API с security middleware (если API включено)
     if cfg.API.Enabled {
-        go startAPIServerWithSecurity(cfg, securityComponents, logger)
+        go startAPIServerWithSecurity(cfg, dbRepo, securityComponents, logger)
     }
 
     // Запускаем listener
@@ -241,10 +241,4 @@ func processEventsWithSecurity(ctx context.Context, listener *eventlistener.Ethe
             return
         }
     }
-}
-
-func startAPIServerWithSecurity(cfg *config.Config, security *SecurityComponents, logger *logrus.Logger) {
-    // Здесь будет реализация API сервера с security middleware
-    log.Printf("🔒 API server with security features starting on port %d", cfg.API.Port)
-    // Реализация API будет добавлена позже
 }
