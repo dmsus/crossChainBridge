@@ -5,12 +5,13 @@ import (
 
     "github.com/dmsus/crossChainBridge/relayer/internal/api/routes"
     "github.com/dmsus/crossChainBridge/relayer/internal/config"
+    "github.com/dmsus/crossChainBridge/relayer/internal/security"
     "github.com/dmsus/crossChainBridge/relayer/pkg/database"
     "github.com/sirupsen/logrus"
 )
 
 // startAPIServerWithSecurity запускает API сервер с security features
-func startAPIServerWithSecurity(cfg *config.Config, dbRepo *database.Repository, securityComponents *SecurityComponents, logger *logrus.Logger) {
+func startAPIServerWithSecurity(cfg *config.Config, dbRepo *database.Repository, securityComponents *security.SecurityComponents, logger *logrus.Logger) {
     if !cfg.API.Enabled {
         logger.Info("🔕 API server is disabled in configuration")
         return

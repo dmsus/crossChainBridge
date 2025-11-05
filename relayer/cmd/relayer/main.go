@@ -136,15 +136,8 @@ func main() {
     cancel()
 }
 
-// SecurityComponents содержит все security компоненты
-type SecurityComponents struct {
-    RateLimiter     *security.RateLimiter
-    ReplayProtector *security.ReplayProtector
-    Middleware      *security.SecurityMiddleware
-}
-
 // setupSecurity инициализирует все security компоненты
-func setupSecurity(cfg *config.Config, dbRepo *database.Repository, logger *logrus.Logger) (*SecurityComponents, error) {
+func setupSecurity(cfg *config.Config, dbRepo *database.Repository, logger *logrus.Logger) (*security.SecurityComponents, error) {
     // Rate Limiter
     rateLimiter := security.NewRateLimiter(security.RateLimitConfig{
         DefaultRequestsPerMinute: cfg.Security.RequestsPerMinute,
@@ -165,7 +158,7 @@ func setupSecurity(cfg *config.Config, dbRepo *database.Repository, logger *logr
     }
     middleware := security.NewSecurityMiddleware(rateLimiter, replayProtector, securityConfig, logger)
 
-    return &SecurityComponents{
+    return &security.SecurityComponents{
         RateLimiter:     rateLimiter,
         ReplayProtector: replayProtector,
         Middleware:      middleware,
@@ -202,7 +195,7 @@ func setupLogging(cfg *config.Config) *logrus.Logger {
     return logger
 }
 
-func processEventsWithSecurity(ctx context.Context, listener *eventlistener.EthereumListener, processor *processor.BridgeProcessor, security *SecurityComponents) {
+func processEventsWithSecurity(ctx context.Context, listener *eventlistener.EthereumListener, processor *processor.BridgeProcessor, security *security.SecurityComponents) {
     for {
         select {
         case event := <-listener.Events():
