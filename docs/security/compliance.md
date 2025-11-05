@@ -133,7 +133,7 @@ metrics:
 
 - **Asia**: Varying cryptocurrency regulations
 
-- **Middle East*: Emerging regulatory frameworks
+- **Middle East**: Emerging regulatory frameworks
 
 ## 📚 Training & Awareness
 ## Employee Training
